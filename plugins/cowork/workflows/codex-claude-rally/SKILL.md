@@ -68,6 +68,13 @@ scripts/rallyctl.sh transition "$RALLY_DIR" CREATED RUNNING codex
 
 Never let Claude and Codex edit the same paths concurrently.
 
+The source checkout does not need to be clean. Record its branch, `HEAD`,
+staged, unstaged, and untracked paths, but do not copy, stash, reset, commit, or
+otherwise absorb those local changes. Create the worker from the manifest
+`base_commit` (`HEAD` at job creation). Local source changes are outside the
+worker diff even when they touch allowed paths; resolve any hand-back conflict
+only after independent verification with a non-mutating apply check.
+
 ## Launch Claude
 
 Run the gate, then pass Claude the immutable request and the absolute artifact directory. Claude must write only to a temporary response file and rename it to `responses/001.md` when complete.

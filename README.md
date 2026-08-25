@@ -52,8 +52,10 @@ Codex handoff, and official-plugin-only features report that requirement.
 ## How material work is handled
 
 - Read-only work runs as a bounded second-model review.
-- Codex-to-Claude write jobs use an isolated worktree and explicit allowed
-  paths. Claude-to-Codex builds require a clean checkout and a frozen plan.
+- Write jobs use an isolated worktree created from the recorded source `HEAD`
+  and explicit allowed paths. The source checkout may be dirty; staged,
+  unstaged, and untracked user work stays local and is not copied into the
+  worker. Hand-back must apply-check rather than overwrite local work.
 - Requests, responses, reviews, and state transitions are durable artifacts.
 - The initiating model verifies the diff and proof before acceptance.
 - Commits, pushes, deployments, and credential changes remain human-gated.

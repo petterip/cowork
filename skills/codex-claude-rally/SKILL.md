@@ -68,7 +68,20 @@ scripts/rallyctl.sh transition "$RALLY_DIR" CREATED RUNNING codex
 
 Never let Claude and Codex edit the same paths concurrently.
 
+The source checkout does not need to be clean. Record its branch, `HEAD`,
+staged, unstaged, and untracked paths, but do not copy, stash, reset, commit, or
+otherwise absorb those local changes. Create the worker from the manifest
+`base_commit` (`HEAD` at job creation). Local source changes are outside the
+worker diff even when they touch allowed paths; resolve any hand-back conflict
+only after independent verification with a non-mutating apply check.
+
 ## Launch Claude
+
+Before writing the request, inspect the available Claude worker/model metadata.
+If the worker uses Opus or Fable, keep the request especially concise: state
+the outcome, source-of-truth locations, constraints, and artifact destination,
+then let the model choose its investigation and solution approach. Do not
+prescribe a detailed checklist unless the task is operationally fragile.
 
 Run the gate, then pass Claude the immutable request and the absolute artifact directory. Claude must write only to a temporary response file and rename it to `responses/001.md` when complete.
 
@@ -93,6 +106,12 @@ documented `logs`, `attach`, `stop`, or respawn workflow; do not scrape terminal
 output.
 
 ## Verify and continue
+
+Wait for every launched or resumed worker to publish its terminal response.
+Do not stop a healthy worker merely because it is slow or because a local
+polling deadline elapsed. Poll status or wait in bounded intervals so Codex can
+keep the user updated. Stop only on user cancellation, a confirmed stuck or
+failed worker, or a protocol/safety condition that requires escalation.
 
 When a response appears, publish it by atomic rename, then transition the manifest and run:
 

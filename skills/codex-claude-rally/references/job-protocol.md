@@ -69,6 +69,14 @@ sections contain real content and no template placeholders remain.
 
 Claude may write only to its recorded, isolated worker worktree. The job creator must declare at least one normalized relative allowed path for a write job. Codex verifies the worker diff and untracked files against that allowlist and `base_commit`, then explicitly asks the user before merging, cherry-picking, or applying it. Read-only jobs may use a shared checkout only when no other writer is active.
 
+The source checkout may have staged, unstaged, and untracked changes. Record
+that state for attribution, then ignore it when creating the worker: the worker
+starts from `base_commit`, never from the source index or working tree. Do not
+stash, reset, commit, copy, or clean the source changes. Before hand-back, run a
+non-mutating apply check against the current source checkout. A conflict or an
+overlap is a hand-back decision for the user; it is not permission to overwrite
+their local work.
+
 When `full_access_authorized` is true, pass each provider's full-access flag to its child session. A review may still instruct the model not to edit, but that instruction must not be implemented by downgrading the child sandbox or permission mode.
 
 ## Recovery table

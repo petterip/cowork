@@ -1,6 +1,6 @@
 ---
 name: codex-build
-description: "Cross-model implementation from a frozen spec: Codex builds with write access, then Claude reviews the complete diff, runs proof, and sends bounded fixes to the same Codex session. Require a clean tree and human approval before committing. Use through /cowork:build for well-specified refactors, migrations, reproducible bugs, and tests. Do not use for tiny edits, design work, existing-code review, or work requiring Claude-session-only tools."
+description: "Cross-model implementation from a frozen spec: Codex builds in an isolated worktree, then Claude reviews the complete diff, runs proof, and sends bounded fixes to the same Codex session. Preserve dirty source checkouts and require human approval before applying or committing. Use through /cowork:build for well-specified refactors, migrations, reproducible bugs, and tests. Do not use for tiny edits, design work, existing-code review, or work requiring Claude-session-only tools."
 ---
 
 # Codex-Build — Codex Types, Claude Verifies
@@ -18,7 +18,8 @@ Adapted from Peter Steinberger's `codex-first` pattern (agent-scripts), rebuilt 
 - Do NOT pin `-m` or model config (e.g. `model_reasoning_effort`) unless the user asks. Pinning `gpt-5.x-codex` variants 400s on ChatGPT-account auth; config defaults come from `~/.codex/config.toml`.
 - **Echo the active model at kickoff** so the user can confirm: read the `model` line from `~/.codex/config.toml` (absent = "CLI default"); state it with the resolved tunables. If the user objects, stop before launching the build.
 - **Codex has a native image-generation tool** in `codex exec` sessions (ChatGPT-account backed, no API key; verified 2026-07-08 — it saved a generated PNG to disk headless). Specs may therefore include "generate these image assets yourself" steps: name exact file paths, dimensions, and style in the prompt contract.
-- Run from the target repo's root (both `exec` and `resume` then need no `-C`; `resume` doesn't support `-C` anyway).
+- Resolve the target repo root first. Codex runs from the isolated worker root
+  created in Step 0 (`resume` does not support `-C`).
 
 ## Tunables (read from args, else default)
 
@@ -34,8 +35,14 @@ Echo resolved values before starting.
 ## Step 0 — Gates (before any Codex launch)
 
 1. **Spec gate.** `SPEC_FILE` must exist and read as a work order (goal, concrete steps, bounds). No spec → offer `/cowork:plan`, which can clarify or review an existing plan. If the user insists on building from a rough idea, write the spec WITH them first — that's design, and design stays with Claude.
-2. **Clean-tree gate.** `git status -sb`. Dirty working tree → STOP and ask the user to commit or stash first. Non-negotiable: Codex writes with full access, and a dirty tree means its diff can't be isolated or cleanly reverted.
-3. Confirm scope in one line, then go. No round-by-round approvals; the human gate is at the end.
+2. **Source-state snapshot.** Record the source root, branch, `HEAD`, staged,
+   unstaged, and untracked paths. A dirty source is allowed. Do not stash,
+   reset, commit, copy, clean, or otherwise absorb its local changes.
+3. **Isolated worker.** Create a detached Git worktree from the recorded `HEAD`
+   in a dedicated temporary directory. Run every Codex build/resume, diff, and
+   proof command there. The source index and working tree never enter the
+   worker, so pre-existing local work is ignored by construction.
+4. Confirm scope in one line, then go. No round-by-round approvals; the human gate is at the end.
 
 ## Step 1 — The build prompt (contract, via temp file)
 
@@ -82,7 +89,7 @@ THREAD_ID=$(jq -r 'select(.type == "thread.started") | .thread_id' "$BUILD_EVENT
 
 ## Step 3 — Verify (Claude, always, never delegated)
 
-Codex's report is advisory. Verify yourself:
+Codex's report is advisory. Verify in the isolated worker:
 
 1. `git status -sb` + read the FULL diff (`git diff`). Judge it like a contributor PR: correctness, spec fidelity, style match with surrounding code, nothing touched outside scope.
 2. Run `PROOF_CMD` yourself (or the focused tests for the changed area). Codex's pasted output doesn't count as proof.
@@ -108,14 +115,15 @@ Re-verify (Step 3) after each round. After `MAX_FIX_ROUNDS` failed rounds: STOP 
 
 ## Step 5 — Human gate (diff sign-off)
 
-Present: 3-bullet summary of what was built, files-changed list, proof-test output (pass/fail, verbatim tail), rounds used, any spec deviations. Ask: *"Codex built it, proof passes, diff reviewed. Commit?"*
+Present: 3-bullet summary of what was built, files-changed list, proof-test output (pass/fail, verbatim tail), rounds used, any spec deviations. Before hand-back, run a non-mutating apply check against the current source checkout. If local work overlaps, report the conflict and ask how to resolve it; never overwrite it. Otherwise ask: *"Codex built it, proof passes, and the diff applies cleanly beside your local changes. Apply and commit?"*
 
-- Commit ONLY on yes — and Claude writes the commit, never Codex.
+- Apply or commit ONLY on yes — and Claude performs the hand-back, never Codex.
 - Rejected → ask what's wrong, route back to Step 4 (or take over directly if fix rounds are spent).
 
 ## Hard rules
 
-- Clean tree before launch. Always. No exceptions.
+- Dirty source trees are allowed and must remain untouched. All writes happen
+  in the isolated worker created from the recorded source `HEAD`.
 - Claude never skips the diff read. Codex claims are advisory until Claude has read the diff and run the proof.
 - Fix loop terminates at `MAX_FIX_ROUNDS` — then Claude takes over. No unbounded delegation ping-pong.
 - Commits, pushes, releases, GitHub mutations: Claude-side only, after the human gate. Codex never commits.
