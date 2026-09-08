@@ -84,6 +84,7 @@ When `full_access_authorized` is true, pass each provider's full-access flag to 
 | Condition | Required action |
 |---|---|
 | Worker or session missing | Inspect its documented log/status; respawn only from a new immutable request. |
+| `--bg` reports idle and never consumes the prompt | Read-only: deliver the same request with `claude -p`, `--add-dir` of the job directory, and stdin closed. If `responses/001.md` is still missing, the parent publishes the captured stdout. Write: `WAITING_FOR_HUMAN`. |
 | Permission prompt appears unexpectedly | Stop the round and move to `WAITING_FOR_HUMAN`; inspect access inheritance. |
 | Base commit, allowed paths, or proof differs | Move to `WAITING_FOR_HUMAN`; do not continue speculatively. |
 | User cancels | Stop the worker, preserve artifacts, and move to `STOPPED`. |

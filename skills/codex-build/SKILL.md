@@ -28,7 +28,7 @@ Adapted from Peter Steinberger's `codex-first` pattern (agent-scripts), rebuilt 
 | `SPEC_FILE` | `PLAN.md` | The frozen spec Codex implements. |
 | `MAX_FIX_ROUNDS` | `2` | Fix iterations via resume before Claude takes over and finishes directly. |
 | `LOG_FILE` | `PLAN-REVIEW-LOG.md` | Append-only build transcript. If it exists (Act 1/2 ran), append `## Act 3 — Build`; else create it. |
-| `PROOF_CMD` | from spec | Exact test/verify command Codex must run as proof. If the spec lacks one, ask the user ONE question to get it before launching. |
+| `PROOF_CMD` | spec `## Verification` | Exact test/verify command Codex must run as proof. Read it from the spec's Verification section. If that section is missing or empty, ask the user ONE question to get it before launching. |
 
 Echo resolved values before starting.
 
@@ -119,6 +119,8 @@ Present: 3-bullet summary of what was built, files-changed list, proof-test outp
 
 - Apply or commit ONLY on yes — and Claude performs the hand-back, never Codex.
 - Rejected → ask what's wrong, route back to Step 4 (or take over directly if fix rounds are spent).
+
+If the user wants a second-provider inspection of the worker diff, run `/cowork:review` (or `cowork-review`) in a **fresh** read-only session. Do not reuse the builder session, and do not treat the earlier review as covering later edits.
 
 ## Hard rules
 

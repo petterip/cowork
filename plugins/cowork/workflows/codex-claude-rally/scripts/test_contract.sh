@@ -139,10 +139,20 @@ write_request "$followup_job/requests/002.md"
 grep -Fq 'full_access_authorized' "$skill_dir/SKILL.md"
 grep -Fq 'WAITING_FOR_HUMAN' "$skill_dir/references/job-protocol.md"
 grep -Fq 'STOPPED' "$skill_dir/references/job-protocol.md"
-if rg -n '^claude -p' "$skill_dir" >/dev/null; then
-  printf '%s\n' 'Skill contains a claude -p command.' >&2
+if rg -n '^claude -p' "$skill_dir" | grep -v '/SKILL.md:'; then
+  printf '%s\n' 'Skill contains a claude -p command outside SKILL.md.' >&2
   exit 1
 fi
+p_count=$(rg -c '^claude -p' "$skill_dir/SKILL.md" || true)
+[[ "${p_count:-0}" == 1 ]] || fail 'SKILL.md must contain exactly one claude -p command.'
+print_block=$(awk '/^claude -p/,/< \/dev\/null/' "$skill_dir/SKILL.md")
+printf '%s\n' "$print_block" | grep -Fq '< /dev/null' || fail 'print-mode fallback must close stdin.'
+printf '%s\n' "$print_block" | grep -Fq -- '--add-dir "$RALLY_DIR"' \
+  || fail 'print-mode fallback must add the job directory.'
+grep -Fq 'idle — send a prompt to start' "$skill_dir/SKILL.md" \
+  || fail 'print-mode fallback missing idle marker.'
+grep -Fq 'transcript-only' "$skill_dir/SKILL.md" \
+  || fail 'print-mode fallback must publish stdout when the artifact is missing.'
 if rg -n 'REVIEW_PROMPT|/tmp/codex-(build|verdict)' "$skill_dir/../codex-build" "$skill_dir/../codex-review" "$skill_dir/../grill-me-codex" "$skill_dir/../grill-with-docs-codex" >/dev/null; then
   printf '%s\n' 'Claude-to-Codex skill contains an undefined prompt or predictable result path.' >&2
   exit 1

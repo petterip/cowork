@@ -1,6 +1,6 @@
 ---
 name: grill-with-docs-codex
-description: "Two-act, documentation-aware collaborative planning: Claude resolves requirements against CONTEXT.md and ADRs, then Codex adversarially reviews PLAN.md read-only while Claude revises in the same session until APPROVED or MAX_ROUNDS. Require human sign-off before code. Use through /cowork:plan --docs for high-stakes plans needing terminology and architecture alignment plus a second-model review. Do not use for trivial changes or existing-code review."
+description: "Two-act, documentation-aware collaborative planning: Claude resolves requirements in frontier rounds against CONTEXT.md and ADRs, then Codex adversarially reviews PLAN.md read-only until APPROVED or MAX_ROUNDS. Require human sign-off before code. Use through /cowork:plan --docs for high-stakes plans needing terminology and architecture alignment plus a second-model review. Do not use for trivial changes or existing-code review."
 ---
 
 # Collaborative Plan with Docs — Align the Domain, Then Challenge the Plan
@@ -18,11 +18,20 @@ You enter at two points: resolving decisions and signing off the converged plan.
 
 <what-to-do>
 
-Interview me relentlessly about every aspect of this plan until we reach a shared understanding. Walk down each branch of the design tree, resolving dependencies between decisions one-by-one. For each question, provide your recommended answer.
+Inspect relevant code, callers, shared state, `CONTEXT.md` / `CONTEXT-MAP.md`,
+and ADRs before asking. Do not interview the user for facts the repository can
+answer.
 
-Ask the questions one at a time, waiting for feedback on each question before continuing.
+Interview relentlessly until there is a shared understanding. Map the work as a
+design tree. Work it in **rounds**. The **frontier** is every unresolved
+decision whose prerequisites are already settled. Ask the whole frontier in
+one round: number each question, give your recommended answer and the cost of
+guessing wrong, then wait. Dependent questions belong to a later round.
 
-If a question can be answered by exploring the codebase, explore the codebase instead.
+"I don't know" is a valid answer. If a question is ungrillable (it needs a
+prototype or other artifact to react to), stop that branch instead of guessing.
+When a long list of remaining recommendations would slow the user down, offer
+to accept all remaining recommendations as a batch.
 
 </what-to-do>
 
@@ -117,6 +126,9 @@ _Locked through documentation-aware planning — by Claude + <user>. Terms per C
 ## Key decisions & tradeoffs
 <the contestable choices planning resolved — link any ADRs created>
 
+## Verification
+<exact proof command(s) derived from the repo, and expected results>
+
 ## Risks / open questions
 <anything still open>
 
@@ -152,7 +164,7 @@ Hand the locked plan to Codex for adversarial review. Mechanics verified end-to-
 Invoked with e.g. `rounds=3` → use it. Echo resolved values first.
 
 ### Review prompt (each round)
-> You are an adversarial reviewer for an implementation plan. Be skeptical and specific — your job is to find what breaks, not to be agreeable. Read the plan at `PLAN.md` (and `CONTEXT.md`/ADRs for the domain language) and any repo files you need (you are read-only). Identify concrete flaws: security holes, race conditions, missing edge cases, schema conflicts, domain-language mismatches, wrong assumptions, observability gaps, simpler alternatives. For each, give a one-line fix. Do NOT modify any files. End with EXACTLY one line: `VERDICT: APPROVED` or `VERDICT: REVISE`.
+> You are an adversarial reviewer for an implementation plan. Be skeptical and specific — your job is to find what breaks, not to be agreeable. Read the plan at `PLAN.md` (and `CONTEXT.md`/ADRs for the domain language) and any repo files you need (you are read-only). Identify concrete flaws: security holes, race conditions, missing edge cases, schema conflicts, domain-language mismatches, wrong assumptions, observability gaps, simpler alternatives, and a Verification section whose proof would not catch a failed implementation. For each, give a one-line fix. Do NOT modify any files. End with EXACTLY one line: `VERDICT: APPROVED` or `VERDICT: REVISE`.
 
 ### Round 1 — fresh session (capture `thread_id`)
 ```bash
@@ -165,7 +177,7 @@ EVENTS_FILE="$WORK_DIR/events.jsonl"
 STDERR_FILE="$WORK_DIR/stderr.log"
 if rg -q '^approval_policy\s*=\s*"never"' ~/.codex/config.toml && rg -q '^sandbox_mode\s*=\s*"danger-full-access"' ~/.codex/config.toml; then CODEX_EXEC_ACCESS=--dangerously-bypass-approvals-and-sandbox; CODEX_RESUME_ACCESS=--dangerously-bypass-approvals-and-sandbox; else CODEX_EXEC_ACCESS='-s read-only'; CODEX_RESUME_ACCESS='-c sandbox_mode="read-only"'; fi
 cat >"$PROMPT_FILE" <<'EOF'
-You are an adversarial reviewer for an implementation plan. Be skeptical and specific — your job is to find what breaks, not to be agreeable. Read the plan at PLAN.md (and CONTEXT.md/ADRs for the domain language) and any repository files you need. Do not modify files. Identify concrete flaws: security holes, race conditions, missing edge cases, schema conflicts, domain-language mismatches, wrong assumptions, observability gaps, and simpler alternatives. For each, give a one-line fix. End with exactly one line: VERDICT: APPROVED or VERDICT: REVISE.
+You are an adversarial reviewer for an implementation plan. Be skeptical and specific — your job is to find what breaks, not to be agreeable. Read the plan at PLAN.md (and CONTEXT.md/ADRs for the domain language) and any repository files you need. Do not modify files. Identify concrete flaws: security holes, race conditions, missing edge cases, schema conflicts, domain-language mismatches, wrong assumptions, observability gaps, simpler alternatives, and a Verification section whose proof would not catch a failed implementation. For each, give a one-line fix. End with exactly one line: VERDICT: APPROVED or VERDICT: REVISE.
 EOF
 if ! timeout 600 codex exec $CODEX_EXEC_ACCESS --json -o "$VERDICT_FILE" "$(<"$PROMPT_FILE")" \
   < /dev/null >"$EVENTS_FILE" 2>"$STDERR_FILE"; then

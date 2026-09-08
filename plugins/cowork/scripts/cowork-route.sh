@@ -100,10 +100,13 @@ case "$action" in
       exec node "$runtime" "$action" "$arguments"
     fi
     [[ "$action" == review ]] || fail 'adversarial review requires codex@openai-codex.'
-    [[ ${#review_args[@]} -gt 0 ]] || review_args=(--uncommitted)
     if [[ ${#focus[@]} -gt 0 ]]; then
-      exec codex review "${review_args[@]}" "${focus[*]}"
+      if [[ ${#review_args[@]} -gt 0 ]]; then
+        fail 'focused review with --base requires the official Codex plugin, or pass --gemini/--copilot; drop --base to use the local CLI.'
+      fi
+      exec codex review "${focus[*]}"
     fi
+    [[ ${#review_args[@]} -gt 0 ]] || review_args=(--uncommitted)
     exec codex review "${review_args[@]}"
     ;;
   transfer|status)

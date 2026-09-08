@@ -1,5 +1,8 @@
 # CONTEXT.md Format
 
+`CONTEXT.md` is a glossary and nothing else: the project's chosen words, one
+definition each. No implementation details, no specs, no scratch notes.
+
 ## Structure
 
 ```md

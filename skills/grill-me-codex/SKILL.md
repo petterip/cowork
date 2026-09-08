@@ -1,6 +1,6 @@
 ---
 name: grill-me-codex
-description: "Two-act collaborative planning: Claude resolves requirements one question at a time, then writes PLAN.md; Codex adversarially reviews it read-only and Claude revises in the same Codex session until APPROVED or MAX_ROUNDS. Require human sign-off before code. Use through /cowork:plan for high-stakes planning, documentation-aware planning, existing-plan review, or directly when requirements need structured clarification and a second-model review. Do not use for trivial changes or existing-code review."
+description: "Two-act collaborative planning: Claude resolves requirements in frontier rounds, then writes PLAN.md; Codex adversarially reviews it read-only until APPROVED or MAX_ROUNDS. Require human sign-off before code. Use through /cowork:plan for high-stakes planning, documentation-aware planning, existing-plan review, or directly when requirements need structured clarification and a second-model review. Do not use for trivial changes or existing-code review."
 ---
 
 # Collaborative Plan — Resolve, Challenge, Then Build
@@ -16,13 +16,25 @@ You enter at two points only: resolving decisions and signing off the converged 
 
 ## ACT 1 — COLLABORATIVE PLANNING (you ↔ Claude)
 
-> Interview me relentlessly about every aspect of this plan until we reach a shared understanding. Walk down each branch of the design tree, resolving dependencies between decisions one-by-one. For each question, provide your recommended answer.
->
-> Ask the questions one at a time, waiting for my answer before continuing.
->
-> If a question can be answered by exploring the codebase, explore the codebase instead.
+Inspect relevant code, callers, shared state, and any existing `CONTEXT.md` /
+ADRs before asking. Do not interview the user for facts the repository can
+answer.
 
-When the decision tree is resolved and we're aligned, **write the agreed plan to `PLAN.md`** in this structure, then move to Act 2:
+Interview relentlessly until there is a shared understanding. Map the work
+as a design tree. Work it in **rounds**. The **frontier** is every unresolved
+decision whose prerequisites are already settled — the questions you can ask
+now without guessing at answers you have not heard. Ask the whole frontier in
+one round: number each question, give your recommended answer and the cost of
+guessing wrong, then wait. A question that depends on another still open in this
+round belongs to a later round.
+
+"I don't know" is a valid answer. If a question is ungrillable (it needs a
+prototype or other artifact to react to), stop that branch instead of guessing.
+When a long list of remaining recommendations would slow the user down, offer
+to accept all remaining recommendations as a batch.
+
+When the frontier is empty and we're aligned, **write the agreed plan to
+`PLAN.md`** in this structure, then move to Act 2:
 
 ```markdown
 # Plan: <task>
@@ -35,7 +47,10 @@ _Locked through collaborative planning — by Claude + <user>_
 <numbered, concrete steps>
 
 ## Key decisions & tradeoffs
-<the contestable choices planning resolved — name them so Codex has something to challenge>
+<the contestable choices planning resolved — name them so the reviewer has something to challenge>
+
+## Verification
+<exact proof command(s) derived from the repo, and expected results>
 
 ## Risks / open questions
 <anything still genuinely open>
@@ -72,7 +87,7 @@ Now hand the locked plan to Codex for adversarial review. Same engine, mechanics
 If invoked with e.g. `rounds=3`, use that for `MAX_ROUNDS`. Echo resolved values before starting.
 
 ### The review prompt (sent each round)
-> You are an adversarial reviewer for an implementation plan. Be skeptical and specific — your job is to find what breaks, not to be agreeable. Read the plan at `PLAN.md` and any repo files you need (you are read-only). Identify concrete flaws: security holes, race conditions, missing edge cases, schema conflicts, wrong assumptions, observability gaps, simpler alternatives. For each, give a one-line fix. Do NOT modify any files. End your reply with EXACTLY one line: `VERDICT: APPROVED` if the plan is sound enough to implement, or `VERDICT: REVISE` if it still has material problems.
+> You are an adversarial reviewer for an implementation plan. Be skeptical and specific — your job is to find what breaks, not to be agreeable. Read the plan at `PLAN.md` and any repo files you need (you are read-only). Identify concrete flaws: security holes, race conditions, missing edge cases, schema conflicts, wrong assumptions, observability gaps, simpler alternatives, and a Verification section whose proof would not catch a failed implementation. For each, give a one-line fix. Do NOT modify any files. End your reply with EXACTLY one line: `VERDICT: APPROVED` if the plan is sound enough to implement, or `VERDICT: REVISE` if it still has material problems.
 
 Before Round 1, create private per-run artifacts. Never share a predictable
 `/tmp` filename between reviews:
@@ -86,7 +101,7 @@ VERDICT_FILE="$RUN_DIR/verdict.md"
 EVENTS_FILE="$RUN_DIR/events.jsonl"
 STDERR_FILE="$RUN_DIR/stderr.log"
 cat >"$PROMPT_FILE" <<'EOF'
-You are an adversarial reviewer for an implementation plan. Read PLAN.md and repository files as needed, but do not modify files. Identify concrete flaws and a one-line fix for each. End with exactly one line: VERDICT: APPROVED or VERDICT: REVISE.
+You are an adversarial reviewer for an implementation plan. Be skeptical and specific. Read PLAN.md and repository files as needed, but do not modify files. Identify concrete flaws: security holes, race conditions, missing edge cases, schema conflicts, wrong assumptions, observability gaps, simpler alternatives, and a Verification section whose proof would not catch a failed implementation. For each, give a one-line fix. End with exactly one line: VERDICT: APPROVED or VERDICT: REVISE.
 EOF
 ```
 

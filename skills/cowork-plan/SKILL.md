@@ -16,5 +16,11 @@ When the user explicitly asks for GitHub Copilot, use
 `${CODEX_HOME:-$HOME/.codex}/cowork/skills/cowork-copilot/SKILL.md`.
 
 When glossary or ADR files exist, align terminology and record only durable,
-hard-to-reverse decisions. Ask only questions that cannot be answered from the
-repository and materially change the plan.
+hard-to-reverse decisions. Inspect the repository first. Ask only questions
+that cannot be answered from the repository and that materially change the
+plan. Ask every independent question whose prerequisites are already settled in
+one round; ask dependent ones only after those answers. "I don't know" is a
+valid answer. If a question needs a prototype, stop that branch instead of
+guessing. When a long list of remaining recommendations would slow the user down,
+offer to accept them as a batch. The written plan must include a Verification
+section with exact proof commands.

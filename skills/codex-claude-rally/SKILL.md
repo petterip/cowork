@@ -1,11 +1,11 @@
 ---
 name: codex-claude-rally
-description: "Delegate bounded work from Codex to a persistent Claude Code background worker and exchange verified results through durable, versioned job artifacts. Use when the user asks to hand work between Codex and Claude, request independent Claude implementation or review, or resume a Claude worker without claude -p."
+description: "Delegate bounded work from Codex to a persistent Claude Code background worker and exchange verified results through durable, versioned job artifacts. Use when the user asks to hand work between Codex and Claude, request independent Claude implementation or review, or resume a Claude worker. Launch with claude --bg; print mode is only the documented idle-fallback."
 ---
 
 # Codex-Claude Rally
 
-Use this skill for asynchronous, two-way collaboration. Codex launches Claude with `claude --bg`; Claude publishes an immutable response; Codex independently verifies it and either accepts it, asks one bounded follow-up, or escalates. Do not use `claude -p`.
+Use this skill for asynchronous, two-way collaboration. Codex launches Claude with `claude --bg`; Claude publishes an immutable response; Codex independently verifies it and either accepts it, asks one bounded follow-up, or escalates. Do not use `claude -p` as the primary launch. The only exception is the idle `--bg` fallback below.
 
 Read [the job protocol](references/job-protocol.md) before creating or resuming a job.
 
@@ -89,14 +89,33 @@ Run the gate, then pass Claude the immutable request and the absolute artifact d
 "$HOME/.codex/skills/codex-claude-rally/scripts/assert-subscription-auth.sh"
 ACCESS_ARGS=()
 if [[ "$(scripts/detect-full-access.sh)" == full ]]; then ACCESS_ARGS=(--dangerously-skip-permissions); fi
-claude --bg "${ACCESS_ARGS[@]}" --name "codex-$JOB_ID" \
+claude --bg "${ACCESS_ARGS[@]}" --name "codex-$JOB_ID" --add-dir "$RALLY_DIR" \
   "Read $RALLY_DIR/requests/001.md. Respect its mode and scope: never edit in read-only mode; in write mode modify only allowed paths. You may read declared source-of-truth files. Publish the result atomically to $RALLY_DIR/responses/001.md, append state events to $RALLY_DIR/events.ndjson, and end the response with READY_FOR_CODEX, NEEDS_CODEX, or WAITING_FOR_HUMAN." \
   | tee "$RALLY_DIR/claude-launch-001.txt"
-claude agents --cwd "$PWD" --all --json
+claude agents --cwd "$TARGET_REPO" --all --json
 ```
 
-Read the worker and session IDs from `claude agents --cwd "$TARGET_REPO" --all
---json`, then record them with the actual worker CWD:
+If the launch confirmation contains `idle — send a prompt to start`, the current
+Claude Code CLI did not deliver the positional prompt. Do not wait on that
+idle session. For a read-only job, deliver the same request with print mode and
+do not leave stdin open:
+
+```bash
+claude -p "${ACCESS_ARGS[@]}" --add-dir "$RALLY_DIR" --output-format text \
+  "Read $RALLY_DIR/requests/001.md. Respect its mode and scope: never edit in read-only mode; in write mode modify only allowed paths. You may read declared source-of-truth files. Publish the result atomically to $RALLY_DIR/responses/001.md, append state events to $RALLY_DIR/events.ndjson, and end the response with READY_FOR_CODEX, NEEDS_CODEX, or WAITING_FOR_HUMAN." \
+  < /dev/null | tee "$RALLY_DIR/claude-print-001.txt"
+```
+
+Print mode yields no `--name` or worker id; skip `record-worker` on this path.
+`--add-dir` does not grant writes. After the print command, require
+`$RALLY_DIR/responses/001.md`. If it is missing, atomically publish
+`claude-print-001.txt` as that response (read-only jobs only). Do not leave the
+job `RUNNING` on a transcript-only run. For a write job, move to
+`WAITING_FOR_HUMAN`; an idle worker is not implementing.
+
+When `--bg` started a live worker, read the worker and session IDs from
+`claude agents --cwd "$TARGET_REPO" --all --json`, then record them with the
+actual worker CWD:
 `scripts/rallyctl.sh record-worker "$RALLY_DIR" <worker-id>
 <session-id-or-null> <worker-cwd>`. If Claude initially exposes only the worker
 ID, record `null`; the same command may later fill the session ID only when the

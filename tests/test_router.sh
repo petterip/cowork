@@ -49,12 +49,20 @@ grep -Fq ' review --wait' "$log"
 : >"$log"
 PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
   COWORK_CODEX_PLUGIN_ROOT="$tmp/missing" "$router" review 'focus'
-grep -Fq 'codex:review --uncommitted focus' "$log"
+grep -Fq 'codex:review focus' "$log"
+
+: >"$log"
+if PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_CODEX_PLUGIN_ROOT="$tmp/missing" "$router" review '--base main focus' 2>"$tmp/route.err"; then
+  printf '%s\n' 'expected focused --base review without official runtime to fail' >&2
+  exit 1
+fi
+grep -Fq 'drop --base' "$tmp/route.err"
 
 : >"$log"
 PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
-  COWORK_CODEX_PLUGIN_ROOT="$tmp/missing" "$router" review '--base main focus'
-grep -Fq 'codex:review --base main focus' "$log"
+  COWORK_CODEX_PLUGIN_ROOT="$tmp/missing" "$router" review '--base main'
+grep -Fq 'codex:review --base main' "$log"
 
 : >"$log"
 PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \

@@ -51,6 +51,9 @@ _Round 0 — initial draft by Claude_
 ## Key decisions & tradeoffs
 <the contestable choices — name them explicitly so Codex has something to bite>
 
+## Verification
+<exact proof command(s) derived from the repo, and expected results>
+
 ## Risks / open questions
 <what you're unsure about>
 
@@ -85,7 +88,7 @@ STDERR_FILE="$RUN_DIR/stderr.log"
 
 **The review prompt** sent to Codex each round (adjust the task line):
 
-> You are an adversarial reviewer for an implementation plan. Be skeptical and specific — your job is to find what breaks, not to be agreeable. Read the plan at `PLAN.md` (and any repo files you need; you are read-only). Identify concrete flaws: security holes, race conditions, missing edge cases, schema conflicts, wrong assumptions, observability gaps, simpler alternatives. For each, give a one-line fix. Do NOT modify any files. End your reply with EXACTLY one line: `VERDICT: APPROVED` if the plan is sound enough to implement, or `VERDICT: REVISE` if it still has material problems.
+> You are an adversarial reviewer for an implementation plan. Be skeptical and specific — your job is to find what breaks, not to be agreeable. Read the plan at `PLAN.md` (and any repo files you need; you are read-only). Identify concrete flaws: security holes, race conditions, missing edge cases, schema conflicts, wrong assumptions, observability gaps, simpler alternatives, and a Verification section whose proof would not catch a failed implementation. For each, give a one-line fix. Do NOT modify any files. End your reply with EXACTLY one line: `VERDICT: APPROVED` if the plan is sound enough to implement, or `VERDICT: REVISE` if it still has material problems.
 
 **Access inheritance:** if the user authorized full access or Codex config has `approval_policy="never"` with `sandbox_mode="danger-full-access"`, set both access variables to `--dangerously-bypass-approvals-and-sandbox`. Otherwise retain the read-only defaults below. Full-access reviewers must still follow the prompt's no-edit instruction.
 
@@ -94,7 +97,7 @@ STDERR_FILE="$RUN_DIR/stderr.log"
 ```bash
 if rg -q '^approval_policy\s*=\s*"never"' ~/.codex/config.toml && rg -q '^sandbox_mode\s*=\s*"danger-full-access"' ~/.codex/config.toml; then CODEX_EXEC_ACCESS=--dangerously-bypass-approvals-and-sandbox; CODEX_RESUME_ACCESS=--dangerously-bypass-approvals-and-sandbox; else CODEX_EXEC_ACCESS='-s read-only'; CODEX_RESUME_ACCESS='-c sandbox_mode="read-only"'; fi
 cat >"$PROMPT_FILE" <<'EOF'
-You are an adversarial reviewer for an implementation plan. Be skeptical and specific — your job is to find what breaks, not to be agreeable. Read PLAN.md and any repository files you need. Do not modify files. Identify concrete flaws and give a one-line fix for each. End with exactly one line: VERDICT: APPROVED or VERDICT: REVISE.
+You are an adversarial reviewer for an implementation plan. Be skeptical and specific — your job is to find what breaks, not to be agreeable. Read PLAN.md and any repository files you need. Do not modify files. Identify concrete flaws: security holes, race conditions, missing edge cases, schema conflicts, wrong assumptions, observability gaps, simpler alternatives, and a Verification section whose proof would not catch a failed implementation. Give a one-line fix for each. End with exactly one line: VERDICT: APPROVED or VERDICT: REVISE.
 EOF
 if ! timeout 600 codex exec $CODEX_EXEC_ACCESS --json -o "$VERDICT_FILE" \
   "$(<"$PROMPT_FILE")" < /dev/null >"$EVENTS_FILE" 2>"$STDERR_FILE"; then
