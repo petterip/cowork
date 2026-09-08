@@ -56,7 +56,7 @@ repository_path=$(cd "$repository_path" && pwd -P)
 [[ "$repository_arg" == "$repository_path" ]] || fail '--repo must be the Git repository root, not a subdirectory.'
 base_commit=$(git -C "$repository_path" rev-parse HEAD)
 state_root=${XDG_STATE_HOME:-"$HOME/.local/state"}
-job_dir="$state_root/cowork-claude-codex/jobs/$job_id"
+job_dir="$state_root/cowork/jobs/$job_id"
 [[ ! -e "$job_dir" ]] || fail "job already exists: $job_dir"
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 access_mode=$("$script_dir/detect-full-access.sh")

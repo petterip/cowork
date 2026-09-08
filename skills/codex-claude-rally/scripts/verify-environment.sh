@@ -33,12 +33,15 @@ else
 fi
 
 state_root=${XDG_STATE_HOME:-"$HOME/.local/state"}
-artifact_root="$state_root/cowork-claude-codex/jobs"
+artifact_root="$state_root/cowork/jobs"
 if mkdir -p "$artifact_root" && probe=$(mktemp "$artifact_root/.probe.XXXXXX") && rm -f "$probe"; then
   status 'External artifact root' PASS
 else
   status 'External artifact root' FAIL
   failed=1
 fi
+
+if command -v agy >/dev/null 2>&1; then status 'Antigravity CLI' PASS; else status 'Antigravity CLI' ABSENT; fi
+if command -v copilot >/dev/null 2>&1; then status 'GitHub Copilot CLI' PASS; else status 'GitHub Copilot CLI' ABSENT; fi
 
 exit "$failed"

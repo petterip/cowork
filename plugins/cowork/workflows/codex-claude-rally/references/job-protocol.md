@@ -3,7 +3,7 @@
 Use one external directory per job:
 
 ```text
-${XDG_STATE_HOME:-$HOME/.local/state}/cowork-claude-codex/jobs/<job-id>/
+${XDG_STATE_HOME:-$HOME/.local/state}/cowork/jobs/<job-id>/
 ├── manifest.json
 ├── state.md
 ├── events.ndjson

@@ -43,7 +43,7 @@ TARGET_REPO=$(git rev-parse --show-toplevel)
 scripts/create-rally-job.sh "$JOB_ID" read-only --repo "$TARGET_REPO" \
   --allowed-path docs --proof-command 'none'
 # Use `write` only when Claude is the sole writer for the requested paths.
-RALLY_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/cowork-claude-codex/jobs/$JOB_ID"
+RALLY_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/cowork/jobs/$JOB_ID"
 ```
 
 Replace the remaining placeholders in `$RALLY_DIR/requests/001.md`. Job creation

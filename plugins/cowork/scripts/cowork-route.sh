@@ -9,6 +9,7 @@ fail() {
 [[ $# -ge 1 ]] || fail 'usage: cowork-route.sh <review|adversarial-review|transfer|status> [arguments]'
 action=$1
 arguments=${2:-}
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 resolve_official_runtime() {
   local root candidate
@@ -33,11 +34,28 @@ case "$action" in
     review_args=()
     focus=()
     gemini_requested=0
+    copilot_requested=0
+    explicit_model=''
     index=0
     while (( index < ${#words[@]} )); do
       case "${words[$index]}" in
         --wait|--background) ((index += 1)) ;;
         --gemini) gemini_requested=1; ((index += 1)) ;;
+        --copilot) copilot_requested=1; ((index += 1)) ;;
+        --model=*)
+          explicit_model=${words[$index]#--model=}
+          [[ -n "$explicit_model" ]] || fail '--model requires a slug.'
+          ((index += 1))
+          ;;
+        --model)
+          (( index + 1 < ${#words[@]} )) || fail '--model requires a slug.'
+          explicit_model=${words[$((index + 1))]}
+          ((index += 2))
+          ;;
+        --base=*)
+          review_args+=(--base "${words[$index]#--base=}")
+          ((index += 1))
+          ;;
         --base)
           (( index + 1 < ${#words[@]} )) || fail '--base requires a ref.'
           review_args+=(--base "${words[$((index + 1))]}")
@@ -46,13 +64,21 @@ case "$action" in
         *) focus+=("${words[$index]}"); ((index += 1)) ;;
       esac
     done
-    if (( gemini_requested )); then
-      command -v agy >/dev/null 2>&1 || fail 'the Antigravity CLI (agy) is required for the Gemini opt-in.'
+    if [[ -n "$explicit_model" ]] && (( !gemini_requested && !copilot_requested )); then
+      fail 'pass --gemini or --copilot with --model; the plugin does not pin a peer from a slug alone.'
+    fi
+    if (( gemini_requested || copilot_requested )); then
+      via=agy
+      family=gemini-flash
+      effort=medium
+      (( copilot_requested )) && via=copilot
+      if (( copilot_requested && !gemini_requested )); then
+        family=auto
+      fi
+      [[ "$action" == adversarial-review ]] && effort=high
       prompt='Review the current code or diff as an independent, read-only reviewer.'
-      model=gemini-3.8-flash-medium
       if [[ "$action" == adversarial-review ]]; then
         prompt='Adversarially challenge the current code or diff as an independent, read-only reviewer: hunt for failure scenarios that break it.'
-        model=gemini-3.8-flash-high
       fi
       if [[ ${#review_args[@]} -gt 0 ]]; then
         prompt+=" Review the diff against the recorded base arguments: ${review_args[*]}."
@@ -63,7 +89,12 @@ case "$action" in
         prompt+=" Focus: ${focus[*]}."
       fi
       prompt+=' Do not modify files. Report findings with file paths and concrete failure scenarios.'
-      exec agy -p "$prompt" --model "$model" --print-timeout 10m
+      if [[ -n "$explicit_model" ]]; then
+        model=$explicit_model
+      else
+        model=$("$script_dir/resolve-model.sh" --family "$family" --via "$via" --effort "$effort")
+      fi
+      exec "$script_dir/invoke-peer-review.sh" "$via" "$model" "$prompt"
     fi
     if [[ -n "$runtime" ]]; then
       exec node "$runtime" "$action" "$arguments"

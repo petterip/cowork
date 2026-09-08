@@ -1,6 +1,6 @@
 ---
 name: cowork-review
-description: Ask Claude to independently review the current Codex work. Use for code, diff, design, security, or regression review when a second model should challenge completed or in-progress changes without editing them.
+description: Ask a second model to independently review the current Codex work. Use for code, diff, design, security, or regression review when a second model should challenge completed or in-progress changes without editing them.
 ---
 
 # Review
@@ -16,4 +16,5 @@ verifies every finding against source, and owns all subsequent fixes.
 When the user explicitly asks for Gemini or Anti-Gravity, run the read-only
 review via the Anti-Gravity CLI (`agy`) per
 `${CODEX_HOME:-$HOME/.codex}/cowork/skills/cowork-gemini/SKILL.md` instead of
-creating a rally job.
+creating a rally job. When the user explicitly asks for GitHub Copilot, use
+`${CODEX_HOME:-$HOME/.codex}/cowork/skills/cowork-copilot/SKILL.md`.

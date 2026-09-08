@@ -1,12 +1,13 @@
 ---
 name: cowork-status
-description: Show active and recent Cowork jobs and Claude workers for the current repository. Use when the user asks what cross-model work is running, finished, blocked, or resumable.
+description: Show active and recent Cowork jobs and workers for the current repository. Use when the user asks what cross-model work is running, finished, blocked, or resumable.
 ---
 
 # Status
 
 Read Rally manifests under
-`${XDG_STATE_HOME:-$HOME/.local/state}/cowork-claude-codex/jobs` and query
+`${XDG_STATE_HOME:-$HOME/.local/state}/cowork/jobs` and the legacy directory
+`${XDG_STATE_HOME:-$HOME/.local/state}/cowork-claude-codex/jobs`, and query
 `claude agents --cwd "$PWD" --all --json`. Present one compact table with job,
 direction, state, owner, round, worker, and next action. Do not mutate jobs.
 Include only manifests whose `repository_path` equals

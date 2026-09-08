@@ -1,6 +1,6 @@
 ---
 name: cowork-build
-description: Build a frozen plan by delegating implementation from Codex to Claude and independently verifying the result. Use for bounded multi-file implementation where Claude should write and Codex should review.
+description: Build a frozen plan by delegating implementation to a second model and independently verifying the result. Use for bounded multi-file implementation where one model writes and another reviews.
 ---
 
 # Build
@@ -19,4 +19,6 @@ and surface an overlap for user resolution. When the user explicitly asks for
 Gemini or Anti-Gravity as the builder, run it via the Anti-Gravity CLI (`agy`)
 following
 `${CODEX_HOME:-$HOME/.codex}/cowork/skills/cowork-gemini/SKILL.md` with the
-same worktree, proof, and hand-back rules.
+same worktree, proof, and hand-back rules. When the user explicitly asks for
+GitHub Copilot as the builder, follow
+`${CODEX_HOME:-$HOME/.codex}/cowork/skills/cowork-copilot/SKILL.md`.

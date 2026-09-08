@@ -11,6 +11,7 @@ Show one compact table combining:
   router exits zero;
 - Claude background workers from `claude agents --cwd "$PWD" --all --json`;
 - Cowork Rally manifests under
+  `${XDG_STATE_HOME:-$HOME/.local/state}/cowork/jobs` and, for older jobs,
   `${XDG_STATE_HOME:-$HOME/.local/state}/cowork-claude-codex/jobs`.
 
 For manifests, include only entries whose `repository_path` equals

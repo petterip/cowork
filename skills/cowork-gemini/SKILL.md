@@ -1,26 +1,27 @@
 ---
 name: cowork-gemini
-description: Delegate cowork work to Gemini 3.8 Flash via the Anti-Gravity CLI (agy). Use ONLY when the user explicitly asks for Gemini or Anti-Gravity; otherwise cowork pairs Codex with Claude.
+description: Delegate cowork work to Gemini Flash via the Anti-Gravity CLI (agy). Use ONLY when the user explicitly asks for Gemini or Anti-Gravity; otherwise cowork pairs Codex with Claude.
 ---
 
 # Gemini via Anti-Gravity CLI
 
-Use Gemini 3.8 Flash as the independent second model only when the user
+Use Gemini Flash as the independent second model only when the user
 explicitly asks for Gemini or Anti-Gravity. Without that request, keep the
-Codex–Claude pairing and do not mention or invoke it.
+default pairing and do not mention or invoke it.
 
 ## Invocation
 
-- Anti-Gravity CLI (`agy`, ≥ 1.1.25) is the only supported CLI. The
-  vendor-dead `gemini` CLI has been removed; never attempt to call it.
-  Announce the model at kickoff: Gemini 3.8 Flash via the Anti-Gravity CLI.
-- Model slugs: `gemini-3.8-flash-medium` for normal reviews and plan
-  challenges, `gemini-3.8-flash-high` for adversarial challenges. A bare
-  `gemini-3.8-flash` is not a valid slug; headless runs exit non-zero on
-  unknown models.
+- Anti-Gravity CLI (`agy`) is the Gemini path. The vendor-dead `gemini` CLI
+  has been removed; never attempt to call it. Announce the resolved model at
+  kickoff after asking `agy models` for the current account list.
+- Live listing is `agy models`. Never hard-code a Gemini version. Resolve the latest Flash slug at runtime
+  with
+  `${CODEX_HOME:-$HOME/.codex}/cowork/plugins/cowork/scripts/resolve-model.sh --family gemini-flash --via agy --effort medium`
+  (use `--effort high` for adversarial challenges). `COWORK_MODEL` overrides
+  the resolved slug when the user supplied an exact id.
 - Read-only review or plan challenge: store the prompt in a shell variable
   sourced from a temp file, then run
-  `agy -p "$PROMPT" --model gemini-3.8-flash-medium --print-timeout 10m`.
+  `agy -p "$PROMPT" --model "$RESOLVED" --print-timeout 10m`.
   The response goes to stdout; diagnostics and errors go to stderr.
 - Never pass `--dangerously-skip-permissions` for reviews. Headless default
   policy soft-denies shell commands, but workspace file writes are

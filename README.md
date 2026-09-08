@@ -1,8 +1,9 @@
-# Cowork Claude–Codex
+# Cowork
 
-Use one model to plan, build, review, or continue work with the other. Cowork
+Use one model to plan, build, review, or continue work with another. Cowork
 selects the direction from the environment and keeps material work bounded and
-verifiable.
+verifiable. Claude, Codex, Gemini Flash, and GitHub Copilot are peers; the
+plugin never ships a model version string.
 
 ## Commands
 
@@ -15,11 +16,16 @@ verifiable.
 | Show jobs                   | `/cowork:status`   | `cowork-status`   |
 | Check setup                 | `/cowork:setup`    | `cowork-setup`    |
 
-In Claude Code, Codex is the other model. In Codex, Claude is the other model.
-Gemini 3.8 Flash is an explicit opt-in only: when the user asks for Gemini,
-the second-model role goes to the Antigravity CLI (`agy`, ≥ 1.1.25) running
-`gemini-3.8-flash-medium` (see the `cowork-gemini` skill). In
-`/cowork:review`, pass `--gemini` in the arguments.
+In Claude Code, Codex is the default other model. In Codex, Claude is the
+default other model. Ask for Gemini or Copilot when you want those peers
+instead.
+
+Gemini Flash is an explicit opt-in: `/cowork:review --gemini` uses the
+Antigravity CLI (`agy`) and resolves the current Flash slug from `agy models`.
+`--copilot` uses the GitHub Copilot CLI (`copilot` from `@github/copilot`).
+`--gemini --copilot` resolves the current Gemini Flash id from Copilot's live
+model list. Pass `--model <slug>` or set `COWORK_MODEL` only when you need an
+exact id; the plugin does not keep versions in source.
 
 `plan` also covers documentation-aware planning and review of an existing
 plan. `build` requires an approved plan and independent proof. `review` never
@@ -31,10 +37,13 @@ verified build.
 Claude Code:
 
 ```text
-/plugin marketplace add petterip/cowork-claude-codex
-/plugin install cowork@cowork-claude-codex
+/plugin marketplace add petterip/cowork
+/plugin install cowork@cowork
 /reload-plugins
 ```
+
+The previous marketplace id `petterip/cowork-claude-codex` redirects here
+after the repository rename.
 
 Codex:
 
@@ -48,13 +57,19 @@ opencode:
 ./install.sh --agent opencode
 ```
 
-Install both from a clone:
+GitHub Copilot CLI skills:
+
+```bash
+./install.sh --agent copilot
+```
+
+Install Claude Code and Codex from a clone:
 
 ```bash
 ./install.sh --agent both
 ```
 
-Install everywhere (Claude Code, Codex, and opencode):
+Install everywhere (Claude Code, Codex, opencode, and Copilot skills):
 
 ```bash
 ./install.sh --agent all
@@ -64,6 +79,9 @@ The official `codex@openai-codex` Claude Code plugin is optional. When present,
 Cowork uses its review, adversarial-review, status, and session-transfer paths.
 Without it, normal reviews use the local Codex CLI; `continue` creates a fresh
 Codex handoff, and official-plugin-only features report that requirement.
+
+The GitHub Copilot peer is the standalone `copilot` binary, not the older
+`gh copilot` suggestion extension.
 
 ## How material work is handled
 
@@ -76,11 +94,14 @@ Codex handoff, and official-plugin-only features report that requirement.
 - The initiating model verifies the diff and proof before acceptance.
 - Commits, pushes, deployments, and credential changes remain human-gated.
 
-Artifacts live outside the checkout:
+New artifacts live outside the checkout:
 
 ```text
-${XDG_STATE_HOME:-$HOME/.local/state}/cowork-claude-codex/jobs/<job-id>/
+${XDG_STATE_HOME:-$HOME/.local/state}/cowork/jobs/<job-id>/
 ```
+
+Status still reads legacy manifests from
+`${XDG_STATE_HOME:-$HOME/.local/state}/cowork-claude-codex/jobs`.
 
 ## Verify the package
 
@@ -88,6 +109,7 @@ ${XDG_STATE_HOME:-$HOME/.local/state}/cowork-claude-codex/jobs/<job-id>/
 tests/test_claude_plugin.sh
 tests/test_router.sh
 tests/test_install.sh
+tests/test_resolve_model.sh
 skills/codex-claude-rally/scripts/test_contract.sh
 ```
 
@@ -99,7 +121,8 @@ skills/codex-claude-rally/scripts/verify-environment.sh
 
 The Claude subscription check blocks known API/provider authentication and
 requires a first-party subscription login. Claude Code cannot expose whether
-optional account-level usage credits are enabled.
+optional account-level usage credits are enabled. Gemini and Copilot are
+optional until you ask for those peers.
 
 ## License
 
