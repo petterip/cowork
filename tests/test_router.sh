@@ -20,7 +20,11 @@ cat >"$fake_bin/codex" <<'EOF'
 printf 'codex:%s\n' "$*" >>"$COWORK_TEST_LOG"
 printf 'codex-argc:%s\n' "$#" >>"$COWORK_TEST_LOG"
 EOF
-chmod +x "$fake_bin/node" "$fake_bin/codex"
+cat >"$fake_bin/agy" <<'EOF'
+#!/usr/bin/env bash
+printf 'agy:%s\n' "$*" >>"$COWORK_TEST_LOG"
+EOF
+chmod +x "$fake_bin/node" "$fake_bin/codex" "$fake_bin/agy"
 
 PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
   COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review '--wait'
@@ -41,5 +45,17 @@ grep -Fq 'codex:review --base main focus' "$log"
 PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
   COWORK_CODEX_PLUGIN_ROOT="$tmp/missing" "$router" review
 grep -Fq 'codex-argc:2' "$log"
+
+: >"$log"
+PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review '--gemini focus'
+grep -Fq 'agy:-p' "$log"
+grep -Fq 'gemini-3.8-flash-medium' "$log"
+
+: >"$log"
+PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_CODEX_PLUGIN_ROOT="$official" "$router" adversarial-review '--gemini'
+grep -Fq 'agy:-p' "$log"
+grep -Fq 'gemini-3.8-flash-high' "$log"
 
 printf '%s\n' 'Cowork router contract: PASS'

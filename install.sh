@@ -8,8 +8,8 @@ fail() {
 
 agent=${1:---agent}
 target=${2:-both}
-[[ "$agent" == --agent ]] || fail 'usage: ./install.sh --agent <claude|codex|both>'
-[[ "$target" == claude || "$target" == codex || "$target" == both ]] || fail 'agent must be claude, codex, or both.'
+[[ "$agent" == --agent ]] || fail 'usage: ./install.sh --agent <claude|codex|opencode|both|all>'
+[[ "$target" == claude || "$target" == codex || "$target" == opencode || "$target" == both || "$target" == all ]] || fail 'agent must be claude, codex, opencode, both, or all.'
 
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
@@ -64,11 +64,11 @@ install_claude_plugin() {
   printf '%s\n' 'Restart Claude Code to use the updated /cowork:* commands.'
 }
 
-if [[ "$target" == claude || "$target" == both ]]; then
+if [[ "$target" == claude || "$target" == both || "$target" == all ]]; then
   install_claude_plugin
 fi
 
-if [[ "$target" == codex || "$target" == both ]]; then
+if [[ "$target" == codex || "$target" == both || "$target" == all ]]; then
   codex_home=${CODEX_HOME:-$HOME/.codex}
   support_root="$codex_home/cowork"
   mkdir -p "$codex_home"
@@ -81,7 +81,15 @@ if [[ "$target" == codex || "$target" == both ]]; then
   for name in codex-claude-rally claude-handoff; do
     remove_owned_codex_skill "$name"
   done
-  for name in cowork-plan cowork-build cowork-review cowork-continue cowork-status cowork-setup; do
+  for name in cowork-plan cowork-build cowork-review cowork-continue cowork-status cowork-setup cowork-gemini; do
     install_skill "$repo_root/skills/$name" "$codex_home/skills"
   done
+fi
+
+if [[ "$target" == opencode || "$target" == all ]]; then
+  opencode_config=${OPENCODE_CONFIG_DIR:-$HOME/.config/opencode}
+  for name in cowork-plan cowork-build cowork-review cowork-continue cowork-status cowork-setup cowork-gemini; do
+    install_skill "$repo_root/skills/$name" "$opencode_config/skills"
+  done
+  printf '%s\n' 'Restart opencode to discover the updated Cowork skills.'
 fi

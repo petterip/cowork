@@ -1,6 +1,6 @@
 ---
 description: Ask Codex to independently review the current Claude Code work
-argument-hint: '[--base <ref>] [focus]'
+argument-hint: "[--base <ref>] [focus]"
 allowed-tools: Bash(*cowork-route.sh:*)
 ---
 
@@ -11,7 +11,9 @@ arguments contain review focus text beyond routing flags, or explicitly
 challenge a design, assumption, or risk, use action `adversarial-review`
 instead because the official normal review accepts no custom focus. The router
 uses the official plugin runtime when available and the local `codex review`
-fallback otherwise.
+fallback otherwise. Include `--gemini` in the arguments only when the user
+explicitly asks for Gemini; the router then sends the review to
+`gemini-3.8-flash` instead of Codex.
 
 Return findings without modifying files. The author model decides and applies
 fixes only after presenting the review.

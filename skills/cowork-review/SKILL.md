@@ -12,3 +12,8 @@ without that target. Give the exact base/diff scope and review focus. In
 read-only mode, allowed paths are review targets and declared source-of-truth
 files remain readable. Claude must not edit. Codex reads the immutable response,
 verifies every finding against source, and owns all subsequent fixes.
+
+When the user explicitly asks for Gemini or Anti-Gravity, run the read-only
+review via the Anti-Gravity CLI (`agy`) per
+`${CODEX_HOME:-$HOME/.codex}/cowork/skills/cowork-gemini/SKILL.md` instead of
+creating a rally job.

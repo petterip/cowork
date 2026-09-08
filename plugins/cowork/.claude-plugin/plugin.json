@@ -1,6 +1,6 @@
 {
   "name": "cowork",
-  "version": "1.0.0",
+  "version": "1.2.1",
   "description": "Plan, build, review, and continue work across Claude Code and Codex.",
   "author": {
     "name": "Petteri Ponsimaa"

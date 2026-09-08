@@ -9,12 +9,21 @@ HOME="$tmp/home" CODEX_HOME="$tmp/custom-codex" \
   "$repo_root/install.sh" --agent codex >/dev/null
 
 [[ "$(readlink -f "$tmp/custom-codex/cowork")" == "$repo_root" ]]
-for command in plan build review continue status setup; do
+for command in plan build review continue status setup gemini; do
   link="$tmp/custom-codex/skills/cowork-$command"
   [[ -L "$link" ]]
   [[ "$(readlink -f "$link")" == "$repo_root/skills/cowork-$command" ]]
 done
 [[ ! -e "$tmp/home/.codex" ]]
+
+HOME="$tmp/home" CODEX_HOME="$tmp/custom-codex" \
+  "$repo_root/install.sh" --agent opencode >/dev/null
+
+for command in plan build review continue status setup gemini; do
+  link="$tmp/home/.config/opencode/skills/cowork-$command"
+  [[ -L "$link" ]]
+  [[ "$(readlink -f "$link")" == "$repo_root/skills/cowork-$command" ]]
+done
 
 HOME="$tmp/home" CODEX_HOME="$tmp/custom-codex" \
   "$repo_root/install.sh" --agent codex >/dev/null

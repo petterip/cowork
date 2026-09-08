@@ -8,8 +8,8 @@ plugin_root="$repo_root/plugins/cowork"
 [[ -f "$marketplace" ]]
 [[ -f "$plugin_root/.claude-plugin/plugin.json" ]]
 jq -e '.name == "cowork-claude-codex" and .plugins[0].name == "cowork" and .plugins[0].source == "./plugins/cowork"' "$marketplace" >/dev/null
-jq -e '.owner.name == "Petteri Ponsimaa" and .metadata.version == "1.0.0" and .plugins[0].version == "1.0.0" and .plugins[0].author.name == "Petteri Ponsimaa"' "$marketplace" >/dev/null
-jq -e '.name == "cowork" and .version == "1.0.0" and .author.name == "Petteri Ponsimaa"' "$plugin_root/.claude-plugin/plugin.json" >/dev/null
+jq -e '.owner.name == "Petteri Ponsimaa" and .metadata.version == "1.2.1" and .plugins[0].version == "1.2.1" and .plugins[0].author.name == "Petteri Ponsimaa"' "$marketplace" >/dev/null
+jq -e '.name == "cowork" and .version == "1.2.1" and .author.name == "Petteri Ponsimaa"' "$plugin_root/.claude-plugin/plugin.json" >/dev/null
 
 wrong_identity="Petteri Piir"'onen'
 if rg --hidden -n -g '!.git/**' "$wrong_identity" "$repo_root"; then
@@ -45,7 +45,7 @@ if rg -n '/cowork:(plan-with-docs|review-plan|handoff)' "$repo_root/README.md" "
   exit 1
 fi
 
-for source in codex-build codex-review grill-me-codex grill-with-docs-codex codex-claude-rally; do
+for source in codex-build codex-review grill-me-codex grill-with-docs-codex codex-claude-rally cowork-gemini; do
   diff -qr -B "$repo_root/skills/$source" "$plugin_root/workflows/$source" >/dev/null
 done
 

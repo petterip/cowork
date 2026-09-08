@@ -15,4 +15,8 @@ command. Read
 isolated Claude worktree. Codex must inspect the complete scoped diff and run
 proof independently before asking the user whether to apply or commit it. At
 hand-back, never overwrite local work: apply-check against the source checkout
-and surface an overlap for user resolution.
+and surface an overlap for user resolution. When the user explicitly asks for
+Gemini or Anti-Gravity as the builder, run it via the Anti-Gravity CLI (`agy`)
+following
+`${CODEX_HOME:-$HOME/.codex}/cowork/skills/cowork-gemini/SKILL.md` with the
+same worktree, proof, and hand-back rules.

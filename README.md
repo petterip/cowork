@@ -6,16 +6,20 @@ verifiable.
 
 ## Commands
 
-| Goal | Claude Code | Codex |
-| --- | --- | --- |
-| Plan before coding | `/cowork:plan` | `cowork-plan` |
-| Build an approved plan | `/cowork:build` | `cowork-build` |
-| Review current work | `/cowork:review` | `cowork-review` |
+| Goal                        | Claude Code        | Codex             |
+| --------------------------- | ------------------ | ----------------- |
+| Plan before coding          | `/cowork:plan`     | `cowork-plan`     |
+| Build an approved plan      | `/cowork:build`    | `cowork-build`    |
+| Review current work         | `/cowork:review`   | `cowork-review`   |
 | Continue in the other model | `/cowork:continue` | `cowork-continue` |
-| Show jobs | `/cowork:status` | `cowork-status` |
-| Check setup | `/cowork:setup` | `cowork-setup` |
+| Show jobs                   | `/cowork:status`   | `cowork-status`   |
+| Check setup                 | `/cowork:setup`    | `cowork-setup`    |
 
 In Claude Code, Codex is the other model. In Codex, Claude is the other model.
+Gemini 3.8 Flash is an explicit opt-in only: when the user asks for Gemini,
+the second-model role goes to the Antigravity CLI (`agy`, ≥ 1.1.25) running
+`gemini-3.8-flash-medium` (see the `cowork-gemini` skill). In
+`/cowork:review`, pass `--gemini` in the arguments.
 
 `plan` also covers documentation-aware planning and review of an existing
 plan. `build` requires an approved plan and independent proof. `review` never
@@ -38,10 +42,22 @@ Codex:
 ./install.sh --agent codex
 ```
 
+opencode:
+
+```bash
+./install.sh --agent opencode
+```
+
 Install both from a clone:
 
 ```bash
 ./install.sh --agent both
+```
+
+Install everywhere (Claude Code, Codex, and opencode):
+
+```bash
+./install.sh --agent all
 ```
 
 The official `codex@openai-codex` Claude Code plugin is optional. When present,

@@ -29,17 +29,15 @@ resolve_official_runtime() {
 runtime=$(resolve_official_runtime || true)
 case "$action" in
   review|adversarial-review)
-    if [[ -n "$runtime" ]]; then
-      exec node "$runtime" "$action" "$arguments"
-    fi
-    [[ "$action" == review ]] || fail 'adversarial review requires codex@openai-codex.'
     read -r -a words <<<"$arguments"
     review_args=()
     focus=()
+    gemini_requested=0
     index=0
     while (( index < ${#words[@]} )); do
       case "${words[$index]}" in
         --wait|--background) ((index += 1)) ;;
+        --gemini) gemini_requested=1; ((index += 1)) ;;
         --base)
           (( index + 1 < ${#words[@]} )) || fail '--base requires a ref.'
           review_args+=(--base "${words[$((index + 1))]}")
@@ -48,6 +46,29 @@ case "$action" in
         *) focus+=("${words[$index]}"); ((index += 1)) ;;
       esac
     done
+    if (( gemini_requested )); then
+      command -v agy >/dev/null 2>&1 || fail 'the Antigravity CLI (agy) is required for the Gemini opt-in.'
+      prompt='Review the current code or diff as an independent, read-only reviewer.'
+      model=gemini-3.8-flash-medium
+      if [[ "$action" == adversarial-review ]]; then
+        prompt='Adversarially challenge the current code or diff as an independent, read-only reviewer: hunt for failure scenarios that break it.'
+        model=gemini-3.8-flash-high
+      fi
+      if [[ ${#review_args[@]} -gt 0 ]]; then
+        prompt+=" Review the diff against the recorded base arguments: ${review_args[*]}."
+      else
+        prompt+=' Review the uncommitted changes.'
+      fi
+      if [[ ${#focus[@]} -gt 0 ]]; then
+        prompt+=" Focus: ${focus[*]}."
+      fi
+      prompt+=' Do not modify files. Report findings with file paths and concrete failure scenarios.'
+      exec agy -p "$prompt" --model "$model" --print-timeout 10m
+    fi
+    if [[ -n "$runtime" ]]; then
+      exec node "$runtime" "$action" "$arguments"
+    fi
+    [[ "$action" == review ]] || fail 'adversarial review requires codex@openai-codex.'
     [[ ${#review_args[@]} -gt 0 ]] || review_args=(--uncommitted)
     if [[ ${#focus[@]} -gt 0 ]]; then
       exec codex review "${review_args[@]}" "${focus[*]}"
