@@ -89,8 +89,8 @@ Install everywhere (Claude Code, Codex, opencode, and Copilot skills):
 ### APM
 
 The `skills/` directory is Cowork's canonical multi-skill APM package. Its
-manifest composes the sibling skills without copying their files. Pin the
-repository to an immutable commit and select that subpath:
+manifest composes immutable same-repository skill subpaths without copying
+their files. Pin the repository to an immutable commit and select that subpath:
 
 ```yaml
 dependencies:

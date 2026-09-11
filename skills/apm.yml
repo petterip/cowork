@@ -6,21 +6,51 @@ license: MIT
 
 dependencies:
   apm:
-    - ./claude-handoff
-    - ./codex-build
-    - ./codex-claude-rally
-    - ./codex-review
-    - ./cowork-build
-    - ./cowork-continue
-    - ./cowork-copilot
-    - ./cowork-gemini
-    - ./cowork-plan
-    - ./cowork-review
-    - ./cowork-runtime
-    - ./cowork-setup
-    - ./cowork-status
-    - ./grill-me-codex
-    - ./grill-with-docs-codex
+    - git: https://github.com/petterip/cowork.git
+      path: skills/claude-handoff
+      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+    - git: https://github.com/petterip/cowork.git
+      path: skills/codex-build
+      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+    - git: https://github.com/petterip/cowork.git
+      path: skills/codex-claude-rally
+      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+    - git: https://github.com/petterip/cowork.git
+      path: skills/codex-review
+      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+    - git: https://github.com/petterip/cowork.git
+      path: skills/cowork-build
+      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+    - git: https://github.com/petterip/cowork.git
+      path: skills/cowork-continue
+      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+    - git: https://github.com/petterip/cowork.git
+      path: skills/cowork-copilot
+      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+    - git: https://github.com/petterip/cowork.git
+      path: skills/cowork-gemini
+      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+    - git: https://github.com/petterip/cowork.git
+      path: skills/cowork-plan
+      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+    - git: https://github.com/petterip/cowork.git
+      path: skills/cowork-review
+      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+    - git: https://github.com/petterip/cowork.git
+      path: skills/cowork-runtime
+      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+    - git: https://github.com/petterip/cowork.git
+      path: skills/cowork-setup
+      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+    - git: https://github.com/petterip/cowork.git
+      path: skills/cowork-status
+      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+    - git: https://github.com/petterip/cowork.git
+      path: skills/grill-me-codex
+      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+    - git: https://github.com/petterip/cowork.git
+      path: skills/grill-with-docs-codex
+      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
   mcp: []
 
 includes: auto
