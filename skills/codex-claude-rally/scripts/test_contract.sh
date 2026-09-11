@@ -24,6 +24,8 @@ fake_bin="$tmp/bin"
 fake_home="$tmp/home"
 fake_state="$tmp/state"
 mkdir -p "$fake_bin" "$fake_home/.claude" "$fake_state"
+tool_path=$(dirname "$(command -v rg)")
+test_path="$fake_bin:$tool_path:/usr/bin:/bin"
 
 for script in "$skill_dir"/scripts/*.sh; do bash -n "$script"; done
 expect_failure env PATH="/usr/bin:/bin" HOME="$fake_home" XDG_STATE_HOME="$fake_state" "$verifier"
@@ -45,13 +47,14 @@ printf '%s\n' 'approval_policy = "never"' 'sandbox_mode = "danger-full-access"' 
 mkdir -p "$fake_home/.codex"
 mv "$fake_home/.codex-config" "$fake_home/.codex/config.toml"
 
-output=$(PATH="$fake_bin:/usr/bin:/bin" HOME="$fake_home" XDG_STATE_HOME="$fake_state" "$verifier")
+output=$(PATH="$test_path" HOME="$fake_home" XDG_STATE_HOME="$fake_state" "$verifier")
 for check in 'Codex CLI: PASS' 'Claude Code CLI: PASS' 'jq: PASS' 'git: PASS' 'Subscription authentication: PASS' 'Full-access inheritance: PASS' 'External artifact root: PASS'; do
   grep -Fq "$check" <<<"$output"
 done
 
 repo="$tmp/repo"
 git init -q "$repo"
+repo_real=$(cd "$repo" && pwd -P)
 git -C "$repo" config user.email test@example.invalid
 git -C "$repo" config user.name test
 printf '%s\n' base > "$repo/base.txt"
@@ -69,9 +72,9 @@ write_request() {
     > "$request"
 }
 
-job_dir=$(cd "$tmp" && PATH="$fake_bin:/usr/bin:/bin" HOME="$fake_home" XDG_STATE_HOME="$fake_state" \
+job_dir=$(cd "$tmp" && PATH="$test_path" HOME="$fake_home" XDG_STATE_HOME="$fake_state" \
   "$skill_dir/scripts/create-rally-job.sh" test-job write --repo "$repo" --allowed-path src --proof-command 'true')
-[[ "$(jq -r '.repository_path' "$job_dir/manifest.json")" == "$repo" ]] || fail 'explicit repository path was not recorded.'
+[[ "$(jq -r '.repository_path' "$job_dir/manifest.json")" == "$repo_real" ]] || fail 'explicit repository path was not recorded.'
 grep -Fq 'Mode: write' "$job_dir/requests/001.md" || fail 'request mode was not prefilled.'
 grep -Fq -- '- src' "$job_dir/requests/001.md" || fail 'request allowed paths were not prefilled.'
 grep -Fxq 'true' "$job_dir/requests/001.md" || fail 'request proof command was not prefilled.'
@@ -103,7 +106,17 @@ printf '%s\n' review > "$job_dir/reviews/001.md"
 "$rallyctl" transition "$job_dir" VERIFYING ACCEPTED codex
 expect_failure "$rallyctl" transition "$job_dir" ACCEPTED RUNNING codex
 
-readonly_job=$(cd "$tmp" && PATH="$fake_bin:/usr/bin:/bin" HOME="$fake_home" XDG_STATE_HOME="$fake_state" \
+mkdir "$job_dir/.lock"
+printf '%s\n' 99999999 >"$job_dir/.lock/owner"
+if lock_error=$(COWORK_LOCK_ATTEMPTS=0 "$rallyctl" transition "$job_dir" ACCEPTED RUNNING codex 2>&1); then
+  fail 'a stale lock must block rather than permit a concurrent transition.'
+fi
+grep -Fq 'job lock is stale' <<<"$lock_error"
+[[ -d "$job_dir/.lock" ]] || fail 'stale-lock diagnosis must not remove a lock another waiter may have replaced.'
+rm "$job_dir/.lock/owner"
+rmdir "$job_dir/.lock"
+
+readonly_job=$(cd "$tmp" && PATH="$test_path" HOME="$fake_home" XDG_STATE_HOME="$fake_state" \
   "$skill_dir/scripts/create-rally-job.sh" readonly-job read-only --repo "$repo")
 grep -Fq 'Mode: read-only' "$readonly_job/requests/001.md" || fail 'read-only request mode was not prefilled.'
 grep -Fq 'Allowed paths: none declared' "$readonly_job/requests/001.md" || fail 'empty allowed paths were not prefilled.'
@@ -119,12 +132,12 @@ write_request "$readonly_job/requests/001.md"
 [[ "$(jq -r '.claude_session_id' "$readonly_job/manifest.json")" == session-1 ]] || fail 'worker session ID was not completed.'
 expect_failure "$rallyctl" record-worker "$readonly_job" worker-2 session-2 "$repo"
 
-stopped_template_job=$(cd "$tmp" && PATH="$fake_bin:/usr/bin:/bin" HOME="$fake_home" XDG_STATE_HOME="$fake_state" \
+stopped_template_job=$(cd "$tmp" && PATH="$test_path" HOME="$fake_home" XDG_STATE_HOME="$fake_state" \
   "$skill_dir/scripts/create-rally-job.sh" stopped-template-job read-only --repo "$repo")
 "$rallyctl" transition "$stopped_template_job" CREATED STOPPED codex
 "$skill_dir/scripts/validate-rally-job.sh" "$stopped_template_job"
 
-followup_job=$(cd "$tmp" && PATH="$fake_bin:/usr/bin:/bin" HOME="$fake_home" XDG_STATE_HOME="$fake_state" \
+followup_job=$(cd "$tmp" && PATH="$test_path" HOME="$fake_home" XDG_STATE_HOME="$fake_state" \
   "$skill_dir/scripts/create-rally-job.sh" followup-job read-only --repo "$repo")
 write_request "$followup_job/requests/001.md"
 "$rallyctl" transition "$followup_job" CREATED RUNNING codex

@@ -27,11 +27,30 @@ manifest_for() {
 
 with_lock() {
   local job_dir=$1
+  local lock_dir attempts owner
   shift
   mkdir -p "$job_dir"
-  exec 9>"$job_dir/.lock"
-  flock -x 9
-  "$@"
+  lock_dir="$job_dir/.lock"
+  attempts=0
+  while ! mkdir "$lock_dir" 2>/dev/null; do
+    owner=''
+    [[ -r "$lock_dir/owner" ]] && read -r owner <"$lock_dir/owner"
+    if (( attempts >= ${COWORK_LOCK_ATTEMPTS:-200} )); then
+      if [[ "$owner" =~ ^[0-9]+$ ]] && ! kill -0 "$owner" 2>/dev/null; then
+        fail "job lock is stale (owner $owner); inspect and remove $lock_dir before retrying."
+      fi
+      [[ -n "$owner" ]] ||
+        fail "job lock has no owner; inspect and remove $lock_dir before retrying."
+      fail "timed out waiting for the job lock held by process $owner."
+    fi
+    ((attempts += 1))
+    sleep "${COWORK_LOCK_RETRY_DELAY:-0.05}"
+  done
+  printf '%s\n' "$$" >"$lock_dir/owner"
+  (
+    trap 'rm -f "$lock_dir/owner"; rmdir "$lock_dir"' EXIT
+    "$@"
+  )
 }
 
 write_manifest() {

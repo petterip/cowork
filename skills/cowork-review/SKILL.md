@@ -5,7 +5,8 @@ description: Ask a second model to independently review the current Codex work. 
 
 # Review
 
-Read `${CODEX_HOME:-$HOME/.codex}/cowork/skills/codex-claude-rally/SKILL.md` and create a read-only Claude review job.
+Read `../codex-claude-rally/SKILL.md` relative to this skill's real base
+directory after following any symlink, and create a read-only Claude review job.
 Resolve the reviewed repository root from the user's task workspace and pass it
 explicitly with `--repo`; never create the job from the Cowork skill directory
 without that target. Give the exact base/diff scope and review focus. In
@@ -14,10 +15,9 @@ files remain readable. Claude must not edit. Codex reads the immutable response,
 verifies every finding against source, and owns all subsequent fixes.
 
 When the user explicitly asks for Gemini or Anti-Gravity, run the read-only
-review via the Anti-Gravity CLI (`agy`) per
-`${CODEX_HOME:-$HOME/.codex}/cowork/skills/cowork-gemini/SKILL.md` instead of
-creating a rally job. When the user explicitly asks for GitHub Copilot, use
-`${CODEX_HOME:-$HOME/.codex}/cowork/skills/cowork-copilot/SKILL.md`.
+review via the Anti-Gravity CLI (`agy`) per `../cowork-gemini/SKILL.md`
+instead of creating a rally job. When the user explicitly asks for GitHub
+Copilot, use `../cowork-copilot/SKILL.md`.
 
 ## Resolving a requested model to a peer
 

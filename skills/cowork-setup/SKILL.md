@@ -5,8 +5,10 @@ description: Verify that Cowork prerequisites, authentication, full-access inher
 
 # Setup
 
-Run `${CODEX_HOME:-$HOME/.codex}/cowork/skills/codex-claude-rally/scripts/verify-environment.sh` and report its exact
-result. Do not change credentials. A failed required check blocks Claude or
+Run `../codex-claude-rally/scripts/verify-environment.sh` relative to this
+skill's real base directory after following any symlink, and report its exact
+result. Do not change credentials.
+A failed required check blocks Claude or
 Codex delegation; restricted full-access status is informational unless the
 user already authorized full access. Gemini (`agy`) and GitHub Copilot CLI
 (`copilot`) are optional until requested. If Claude plugin list still shows

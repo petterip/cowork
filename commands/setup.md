@@ -3,7 +3,7 @@ description: Check Cowork and its optional Codex, Gemini, and Copilot peers
 allowed-tools: Bash(claude plugin:*), Bash(*verify-environment.sh)
 ---
 
-Run `$CLAUDE_PLUGIN_ROOT/workflows/codex-claude-rally/scripts/verify-environment.sh`
+Run `$CLAUDE_PLUGIN_ROOT/skills/codex-claude-rally/scripts/verify-environment.sh`
 and report its exact result. Run `claude plugin list` and report whether
 `codex@openai-codex` is enabled and whether `cowork@cowork` is enabled. If the
 list still shows `cowork@cowork-claude-codex`, say to uninstall that id and

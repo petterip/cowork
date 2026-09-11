@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-resolver="$repo_root/plugins/cowork/scripts/resolve-model.sh"
+resolver="$repo_root/scripts/resolve-model.sh"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 fake_bin="$tmp/bin"
@@ -31,7 +31,8 @@ printf 'copilot:%s\n' "$*" >>"${COWORK_TEST_LOG:-/dev/null}"
 EOF
 chmod +x "$fake_bin/agy" "$fake_bin/copilot"
 
-export PATH="$fake_bin:/usr/bin:/bin"
+tool_path=$(dirname "$(command -v rg)")
+export PATH="$fake_bin:$tool_path:/usr/bin:/bin"
 [[ "$("$resolver" --family gemini-flash --via agy --effort medium)" == gemini-4.2-flash-medium ]]
 [[ "$("$resolver" --family gemini-flash --via agy --effort high)" == gemini-4.2-flash-high ]]
 [[ "$("$resolver" --family gemini-flash --via copilot)" == gemini-4.1-flash ]]
@@ -63,7 +64,7 @@ fi
 printf '%s\n' "$err" | grep -Fq 'listed no Gemini Flash slug'
 
 matches=$(rg -n 'gemini-[0-9]+\.[0-9]+' \
-  "$repo_root/plugins" "$repo_root/skills" "$repo_root/README.md" "$repo_root/install.sh" || true)
+  "$repo_root/scripts" "$repo_root/skills" "$repo_root/README.md" "$repo_root/install.sh" || true)
 if [[ -n "$matches" ]]; then
   printf '%s\n' "$matches" >&2
   printf '%s\n' 'Shipped Cowork files still hard-code a Gemini version.' >&2

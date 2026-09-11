@@ -11,11 +11,15 @@ is a different tool and is not this path.
 
 ## Invocation
 
+Resolve `COWORK_PLUGIN_ROOT` to the plugin root two directories above this
+skill's real base directory after following any symlink.
+
 - Non-interactive reviews use `copilot -p` with `-s` and `--no-ask-user`.
   Allow only `git status`, `git diff`, `git log`, and `git show`. Do not pass
   `--allow-all`, `--yolo`, or `shell(git:*)`.
 - Never hard-code a model version. For Copilot's own picker, resolve with
-  `${CODEX_HOME:-$HOME/.codex}/cowork/plugins/cowork/scripts/resolve-model.sh --family auto --via copilot`
+  `$COWORK_PLUGIN_ROOT/scripts/resolve-model.sh --family auto --via copilot`,
+  or simply pass `auto` to `scripts/invoke-peer-review.sh`, which resolves it
   (prints `auto`). For Gemini Flash through Copilot, use
   `--family gemini-flash --via copilot`. `COWORK_MODEL` or `--model` supplies
   an exact slug when the user named one.
@@ -26,8 +30,8 @@ is a different tool and is not this path.
 
 ## Build
 
-Material write work follows the isolated worktree and human gates in
-`${CODEX_HOME:-$HOME/.codex}/cowork/skills/codex-build/SKILL.md`. Reviews
+Material write work follows the bundled `codex-build` skill's isolated
+worktree and human gates. Reviews
 stay read-only; do not reuse the review allow-list for a builder.
 
 ## Rules

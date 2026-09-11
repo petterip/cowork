@@ -45,6 +45,17 @@ Claude Code:
 /reload-plugins
 ```
 
+GitHub Copilot CLI plugin:
+
+```text
+/plugin marketplace add petterip/cowork
+/plugin install cowork@cowork
+/skills reload
+```
+
+Update an existing Copilot installation with `/plugin marketplace update cowork`,
+`/plugin update cowork`, then `/skills reload`.
+
 Codex:
 
 ```bash
@@ -57,7 +68,7 @@ opencode:
 ./install.sh --agent opencode
 ```
 
-GitHub Copilot CLI skills:
+GitHub Copilot CLI skills from a clone:
 
 ```bash
 ./install.sh --agent copilot

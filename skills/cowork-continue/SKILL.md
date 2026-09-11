@@ -5,11 +5,11 @@ description: Continue the current Codex work in a fresh second-model session. Us
 
 # Continue
 
-Read and follow `${CODEX_HOME:-$HOME/.codex}/cowork/skills/claude-handoff/SKILL.md`. Produce a compact handoff with
+Read and follow `../claude-handoff/SKILL.md` relative to this skill's real base
+directory after following any symlink. Produce a compact handoff with
 goal, current state, decisions, artifacts, remaining work, proof, and the
 user's requested focus. Start Claude in the current repository and inherit full
 access when already authorized. When the user explicitly asks to continue in Gemini or Anti-Gravity, hand off
-to an `agy` (Anti-Gravity CLI) session per
-`${CODEX_HOME:-$HOME/.codex}/cowork/skills/cowork-gemini/SKILL.md` instead.
-When the user explicitly asks for GitHub Copilot, follow
-`${CODEX_HOME:-$HOME/.codex}/cowork/skills/cowork-copilot/SKILL.md`.
+to an `agy` (Anti-Gravity CLI) session per `../cowork-gemini/SKILL.md`
+instead. When the user explicitly asks for GitHub Copilot, follow the bundled
+`../cowork-copilot/SKILL.md`.

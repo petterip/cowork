@@ -43,7 +43,7 @@ HOME="$tmp/home" CODEX_HOME="$tmp/custom-codex" \
 HOME="$tmp/home-copilot-only" CODEX_HOME="$tmp/copilot-only" \
   "$repo_root/install.sh" --agent copilot >/dev/null
 [[ "$(readlink -f "$tmp/copilot-only/cowork")" == "$repo_root" ]]
-[[ -x "$tmp/copilot-only/cowork/plugins/cowork/scripts/resolve-model.sh" ]]
+[[ -x "$tmp/copilot-only/cowork/scripts/resolve-model.sh" ]]
 [[ ! -e "$tmp/home-copilot-only/.codex" ]]
 
 mkdir -p "$tmp/collision/cowork"

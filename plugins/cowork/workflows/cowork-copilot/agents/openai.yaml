@@ -1,4 +1,0 @@
-interface:
-  display_name: "Cowork: Copilot"
-  short_description: "Delegate to GitHub Copilot CLI when explicitly asked."
-  default_prompt: "Use the GitHub Copilot CLI as the second model for this cowork step. Resolve the live model; do not hard-code a version."

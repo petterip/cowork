@@ -109,9 +109,20 @@ case "$action" in
         else
           printf '## git diff HEAD (staged and unstaged)\n\n```diff\n'
           git diff HEAD
-          printf '```\n\n## git status --porcelain\n\n```\n'
-          git status --porcelain
-          printf '```\n\nUntracked files are listed but their contents are not included; ask for them by name if a finding depends on one.\n'
+          printf '```\n'
+        fi
+        printf '\n## Untracked files\n'
+        untracked=0
+        while IFS= read -r -d '' file; do
+          untracked=1
+          printf '\n### %s\n\n```diff\n' "$file"
+          diff_status=0
+          git diff --no-index --binary -- /dev/null "$file" || diff_status=$?
+          (( diff_status <= 1 )) || fail "could not read untracked file: $file"
+          printf '```\n'
+        done < <(git ls-files --others --exclude-standard -z)
+        if (( !untracked )); then
+          printf '\nNone.\n'
         fi
       } >"$prompt_file"
 

@@ -1,4 +1,0 @@
-interface:
-  display_name: "Cowork: Gemini"
-  short_description: "Delegate to the current Gemini Flash when explicitly asked."
-  default_prompt: "Use Gemini Flash as the second model for this cowork step. Resolve the live slug; do not hard-code a version."
