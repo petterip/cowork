@@ -18,6 +18,17 @@ required() {
 if command -v codex >/dev/null 2>&1; then status 'Codex CLI' PASS; else status 'Codex CLI' FAIL; failed=1; fi
 if command -v claude >/dev/null 2>&1; then status 'Claude Code CLI' PASS; else status 'Claude Code CLI' FAIL; failed=1; fi
 
+# Every rally script parses the manifest with jq and resolves the repository
+# with git; without them the preflight would pass and the job would die later.
+for tool in jq git; do
+  if command -v "$tool" >/dev/null 2>&1; then
+    status "$tool" PASS
+  else
+    status "$tool" FAIL
+    failed=1
+  fi
+done
+
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 if "$script_dir/assert-subscription-auth.sh" >/dev/null 2>&1; then
   status 'Subscription authentication' PASS

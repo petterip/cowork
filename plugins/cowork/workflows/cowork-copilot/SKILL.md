@@ -15,7 +15,8 @@ is a different tool and is not this path.
   Allow only `git status`, `git diff`, `git log`, and `git show`. Do not pass
   `--allow-all`, `--yolo`, or `shell(git:*)`.
 - Never hard-code a model version. For Copilot's own picker, resolve with
-  `${CODEX_HOME:-$HOME/.codex}/cowork/plugins/cowork/scripts/resolve-model.sh --family auto --via copilot`
+  `$CLAUDE_PLUGIN_ROOT/scripts/resolve-model.sh --family auto --via copilot`,
+  or simply pass `auto` to `scripts/invoke-peer-review.sh`, which resolves it
   (prints `auto`). For Gemini Flash through Copilot, use
   `--family gemini-flash --via copilot`. `COWORK_MODEL` or `--model` supplies
   an exact slug when the user named one.

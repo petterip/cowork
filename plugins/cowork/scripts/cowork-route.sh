@@ -89,12 +89,38 @@ case "$action" in
         prompt+=" Focus: ${focus[*]}."
       fi
       prompt+=' Do not modify files. Report findings with file paths and concrete failure scenarios.'
-      if [[ -n "$explicit_model" ]]; then
-        model=$explicit_model
-      else
-        model=$("$script_dir/resolve-model.sh" --family "$family" --via "$via" --effort "$effort")
-      fi
-      exec "$script_dir/invoke-peer-review.sh" "$via" "$model" "$prompt"
+
+      # The peer is handed the change itself. Asking a model to "review the
+      # uncommitted changes" without the diff leaves it guessing or shelling
+      # out for something it is not allowed to read, which is how a review
+      # turns into a timeout with no findings.
+      git rev-parse --git-dir >/dev/null 2>&1 || fail 'run peer review from inside a git repository.'
+      prompt_file=$(mktemp "${TMPDIR:-/tmp}/cowork-review-XXXXXX.txt")
+      trap 'rm -f "$prompt_file"' EXIT
+      {
+        printf '%s\n\n' "$prompt"
+        printf 'Everything you need is below. Answer from this text alone: do not run commands, read files, or wait on background work.\n\n'
+        if [[ ${#review_args[@]} -gt 0 ]]; then
+          base=${review_args[1]:-}
+          [[ -n "$base" ]] || fail 'internal error: --base recorded without a ref.'
+          printf '## git diff %s\n\n```diff\n' "$base"
+          git diff "$base"
+          printf '```\n'
+        else
+          printf '## git diff HEAD (staged and unstaged)\n\n```diff\n'
+          git diff HEAD
+          printf '```\n\n## git status --porcelain\n\n```\n'
+          git status --porcelain
+          printf '```\n\nUntracked files are listed but their contents are not included; ask for them by name if a finding depends on one.\n'
+        fi
+      } >"$prompt_file"
+
+      model=${explicit_model:-auto}
+      # Not `exec`: the trap that removes the prompt file has to run.
+      status=0
+      "$script_dir/invoke-peer-review.sh" "$via" "$model" \
+        --family "$family" --effort "$effort" --prompt-file "$prompt_file" || status=$?
+      exit "$status"
     fi
     if [[ -n "$runtime" ]]; then
       exec node "$runtime" "$action" "$arguments"

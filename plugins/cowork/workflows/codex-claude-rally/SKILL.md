@@ -70,10 +70,18 @@ Never let Claude and Codex edit the same paths concurrently.
 
 The source checkout does not need to be clean. Record its branch, `HEAD`,
 staged, unstaged, and untracked paths, but do not copy, stash, reset, commit, or
-otherwise absorb those local changes. Create the worker from the manifest
-`base_commit` (`HEAD` at job creation). Local source changes are outside the
-worker diff even when they touch allowed paths; resolve any hand-back conflict
-only after independent verification with a non-mutating apply check.
+otherwise absorb those local changes.
+
+A read-only `--repo` is the Git worktree root to review as it stands now,
+including staged, unstaged, and untracked files, and the worker runs in that
+root. Do not review `origin/main`, a remote snapshot, or any clone unless the
+user asked for committed remote `HEAD`.
+
+A write job is the isolated case: create the worker from the manifest
+`base_commit` (`HEAD` at job creation), never from the source index or working
+tree, and never by copying dirty source files. Local source changes are outside
+the worker diff even when they touch allowed paths; resolve any hand-back
+conflict only after independent verification with a non-mutating apply check.
 
 ## Launch Claude
 
@@ -83,31 +91,84 @@ the outcome, source-of-truth locations, constraints, and artifact destination,
 then let the model choose its investigation and solution approach. Do not
 prescribe a detailed checklist unless the task is operationally fragile.
 
-Run the gate, then pass Claude the immutable request and the absolute artifact directory. Claude must write only to a temporary response file and rename it to `responses/001.md` when complete.
+Run the gate, then pass Claude the immutable request and the absolute artifact
+directory. Launch from the recorded `repository_path` so the worker sees that
+working tree. Claude must write only to a temporary response file and rename it
+to `responses/001.md` when complete.
 
 ```bash
-"$HOME/.codex/skills/codex-claude-rally/scripts/assert-subscription-auth.sh"
+scripts/assert-subscription-auth.sh
 ACCESS_ARGS=()
 if [[ "$(scripts/detect-full-access.sh)" == full ]]; then ACCESS_ARGS=(--dangerously-skip-permissions); fi
-claude --bg "${ACCESS_ARGS[@]}" --name "codex-$JOB_ID" --add-dir "$RALLY_DIR" \
-  "Read $RALLY_DIR/requests/001.md. Respect its mode and scope: never edit in read-only mode; in write mode modify only allowed paths. You may read declared source-of-truth files. Publish the result atomically to $RALLY_DIR/responses/001.md, append state events to $RALLY_DIR/events.ndjson, and end the response with READY_FOR_CODEX, NEEDS_CODEX, or WAITING_FOR_HUMAN." \
-  | tee "$RALLY_DIR/claude-launch-001.txt"
-claude agents --cwd "$TARGET_REPO" --all --json
+CLAUDE_MODEL=${CLAUDE_MODEL:-opus}   # the Claude alias the user asked for; never a peer or product name
+RALLY_PROMPT="Read $RALLY_DIR/requests/001.md. Respect its mode and scope: never edit in read-only mode; in write mode modify only allowed paths. You may read declared source-of-truth files. Publish the result atomically to $RALLY_DIR/responses/001.md, append state events to $RALLY_DIR/events.ndjson, and end the response with READY_FOR_CODEX, NEEDS_CODEX, or WAITING_FOR_HUMAN."
+( cd "$TARGET_REPO" && claude --bg "${ACCESS_ARGS[@]}" --model "$CLAUDE_MODEL" \
+    --name "codex-$JOB_ID" --add-dir "$RALLY_DIR" --add-dir "$TARGET_REPO" \
+    -- "$RALLY_PROMPT" ) 2>&1 | tee "$RALLY_DIR/claude-launch-001.txt"
+claude agents --cwd "$TARGET_REPO" --all --json \
+  | jq --arg name "codex-$JOB_ID" 'map(select(.kind == "background" and .name == $name))
+      | max_by(.startedAt) | {id, state, cwd}'
 ```
 
-If the launch confirmation contains `idle — send a prompt to start`, the current
-Claude Code CLI did not deliver the positional prompt. Do not wait on that
-idle session. For a read-only job, deliver the same request with print mode and
-do not leave stdin open:
+Keep the `cd` inside the subshell. Every other script path in this skill is
+relative to the skill directory, so leaving the shell parked in `$TARGET_REPO`
+would break the later `rallyctl` and `validate-rally-job` calls.
+
+Always separate the prompt with `--`. `--add-dir` takes a variadic
+`<directories...>` list, so a prompt written straight after it is parsed as one
+more directory and the session starts with no prompt at all — that is the real
+cause of `idle — send a prompt to start`, not a CLI defect. The same hazard
+applies to any variadic flag placed last.
+
+`--cwd` is not a launch flag; it exists only on `claude agents`, where it merely
+filters the listing. `claude -p --cwd` exits 1 with `unknown option '--cwd'`.
+`claude --bg --cwd` is worse: it prints `backgrounded` and exits 0 while the
+session is already `failed`, and `claude logs` then answers `job not found`. Pin
+the working tree with `cd` plus `--add-dir`, never with `--cwd`.
+
+`claude --bg` is not a flag validator. It exits 0 and prints `backgrounded` even
+for an unknown option, silently taking the misparsed prompt as the session name,
+and the `tee` pipeline discards the exit status anyway. The session `state` is
+the only launch verdict; the launch line alone never is. Only `claude -p`
+rejects a bad flag loudly, with `unknown option` and exit 1.
+
+`claude agents --all --json` also lists interactive sessions. Those rows carry
+`pid` and `status` and have no `id` and no `state`, and an interactive
+`status: "idle"` has nothing to do with a background worker — select
+`kind == "background"` by name and read `state`.
+
+### Classify the launch before any fallback
+
+| `state` of the `kind == "background"` row named `codex-$JOB_ID` | Required action |
+|---|---|
+| `working`, or `done` with `responses/001.md` published | `record-worker`, then wait. Inspect with `claude logs <id>` or `claude attach <id>`. Do not run print mode. |
+| `blocked` — the launch line said `idle — send a prompt to start` | A variadic flag swallowed the prompt. Add the `--` separator and relaunch; do not wait on the idle session. Only if it recurs with `--` in place: read-only falls back to print mode, write moves to `WAITING_FOR_HUMAN`. |
+| `failed`, or `claude logs` reports `job not found` | Read `claude logs <id>`. A `--cwd` or any other bad flag on the launch line is the known cause. Fix the flags and respawn from the same request. Never print-fallback a failed worker. |
+| `stopped` | Something stopped the worker. Preserve the artifacts, record `STOPPED`, and relaunch only from a new immutable request. |
+| No background row matches the name | The launch never registered a worker. Re-read the tee'd launch line and fix the flags. Never substitute a different peer, a cloud session, or a subagent. |
+
+`claude logs` replays the worker's terminal including escape codes, so read it as
+a screen capture; sparse `grep` hits there do not mean the worker is silent.
+
+Print mode is the last resort for a read-only job whose prompt still will not
+stick with `--` in place. Deliver the same request from the same directory, with
+stdin closed and a streaming output format:
 
 ```bash
-claude -p "${ACCESS_ARGS[@]}" --add-dir "$RALLY_DIR" --output-format text \
-  "Read $RALLY_DIR/requests/001.md. Respect its mode and scope: never edit in read-only mode; in write mode modify only allowed paths. You may read declared source-of-truth files. Publish the result atomically to $RALLY_DIR/responses/001.md, append state events to $RALLY_DIR/events.ndjson, and end the response with READY_FOR_CODEX, NEEDS_CODEX, or WAITING_FOR_HUMAN." \
-  < /dev/null | tee "$RALLY_DIR/claude-print-001.txt"
+( cd "$TARGET_REPO" && claude -p "${ACCESS_ARGS[@]}" --model "$CLAUDE_MODEL" \
+    --add-dir "$RALLY_DIR" --add-dir "$TARGET_REPO" \
+    --output-format stream-json --verbose -- "$RALLY_PROMPT" \
+    < /dev/null ) | tee "$RALLY_DIR/claude-print-001.txt"
 ```
 
+`--output-format text` prints nothing until the whole run finishes, so it is
+never a liveness signal; `stream-json` emits events from the first second. Empty
+stdout is therefore not a stall: watch the tee file and the process, and stop
+only on `unknown option`, a non-zero exit — print mode does report both — or
+user cancellation.
+
 Print mode yields no `--name` or worker id; skip `record-worker` on this path.
-`--add-dir` does not grant writes. After the print command, require
+`--add-dir` does not grant writes. After the print command exits, require
 `$RALLY_DIR/responses/001.md`. If it is missing, atomically publish
 `claude-print-001.txt` as that response (read-only jobs only). Do not leave the
 job `RUNNING` on a transcript-only run. For a write job, move to

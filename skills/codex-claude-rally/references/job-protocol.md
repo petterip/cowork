@@ -27,8 +27,10 @@ Never use an in-checkout mailbox for a write job. Claude Code can isolate a back
 - immutable request, response, and review SHA-256 digests by round
 
 `repository_path` is always an explicitly supplied, canonical Git worktree
-root. Job creation must not derive it from the skill script's current working
-directory. For read-only jobs, `allowed_paths` are review targets and the
+root, and every Claude launch runs with it as the process CWD. Job creation must
+not derive it from the skill script's current working directory. For a read-only
+job it is the tree to review as it stands, including staged, unstaged, and
+untracked files. For read-only jobs, `allowed_paths` are review targets and the
 request may declare additional readable source-of-truth files. For write jobs,
 `allowed_paths` are the strict mutation allowlist.
 
@@ -84,7 +86,9 @@ When `full_access_authorized` is true, pass each provider's full-access flag to 
 | Condition | Required action |
 |---|---|
 | Worker or session missing | Inspect its documented log/status; respawn only from a new immutable request. |
-| `--bg` reports idle and never consumes the prompt | Read-only: deliver the same request with `claude -p`, `--add-dir` of the job directory, and stdin closed. If `responses/001.md` is still missing, the parent publishes the captured stdout. Write: `WAITING_FOR_HUMAN`. |
+| `--bg` prints `backgrounded` but the session state is `failed` | Read `claude logs <id>`. A `--cwd` on the launch line is the known cause; `--cwd` is valid only on `claude agents`. Fix the flags and respawn. Never print-fallback a failed worker. |
+| `--bg` reports `idle — send a prompt to start` (state `blocked`) | A variadic flag such as `--add-dir` swallowed the prompt: separate it with `--` and relaunch. Only if it recurs with `--` in place, read-only: deliver the same request with `claude -p` (never `--cwd`), `--add-dir` of the job directory and the repository, `--output-format stream-json`, and stdin closed. Empty stdout is not a stall. If `responses/001.md` is still missing once it exits, the parent publishes the captured stdout. Write: `WAITING_FOR_HUMAN`. |
+| The named peer has no local CLI launch | Move to `WAITING_FOR_HUMAN`. Never substitute a cloud session, a clone, or another vendor's agent for the named peer. |
 | Permission prompt appears unexpectedly | Stop the round and move to `WAITING_FOR_HUMAN`; inspect access inheritance. |
 | Base commit, allowed paths, or proof differs | Move to `WAITING_FOR_HUMAN`; do not continue speculatively. |
 | User cancels | Stop the worker, preserve artifacts, and move to `STOPPED`. |

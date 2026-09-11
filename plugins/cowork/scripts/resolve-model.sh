@@ -36,7 +36,20 @@ pick_latest() {
 
 list_agy_slugs() {
   command -v agy >/dev/null 2>&1 || fail 'the Antigravity CLI (agy) is required for Gemini.'
-  agy models 2>/dev/null | awk '{print $1}' | sed '/^$/d'
+  local errors output status=0
+  errors=$(mktemp)
+  trap 'rm -f "$errors"' RETURN
+  # An auth or network failure must not read as "this account has no Flash
+  # model": the CLI's own words are the only useful diagnosis.
+  output=$(agy models 2>"$errors") || status=$?
+  if (( status != 0 )) || [[ -z "$output" ]]; then
+    printf 'agy models failed (exit %s):\n' "$status" >&2
+    cat "$errors" >&2
+    rm -f "$errors"
+    fail 'could not list Gemini models; sign in with an interactive `agy` run, or set COWORK_MODEL.'
+  fi
+  rm -f "$errors"
+  printf '%s\n' "$output" | awk '{print $1}' | sed '/^$/d'
 }
 
 list_copilot_slugs() {
@@ -69,6 +82,8 @@ if [[ "$via" == agy ]]; then
     picked=$(printf '%s\n' "$slugs" | pick_latest '^gemini-[0-9]+([.][0-9]+)*-flash$')
   fi
   [[ -n "$picked" ]] || fail "agy models listed no Gemini Flash slug for effort ${effort}."
+  # Newest by version, never a pinned generation: the account's model list is
+  # the authority, and it changes without notice.
   printf '%s\n' "$picked"
   exit 0
 fi

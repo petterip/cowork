@@ -18,7 +18,11 @@ plugin never ships a model version string.
 
 In Claude Code, Codex is the default other model. In Codex, Claude is the
 default other model. Ask for Gemini or Copilot when you want those peers
-instead.
+instead. Model names are not peer names: Astra is an OpenAI model inside the
+Codex peer; Opus and Fable are Claude models inside the rally worker
+(`claude --model fable`); Gemini Flash is a model family inside `agy`. Resolve
+a requested model name to its peer CLI and that peer's own model surface —
+never probe for a binary named after the model.
 
 Gemini Flash is an explicit opt-in: `/cowork:review --gemini` uses the
 Antigravity CLI (`agy`) and resolves the current Flash slug from `agy models`.
