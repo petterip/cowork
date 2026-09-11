@@ -7,7 +7,7 @@ allowed-tools: Bash(*cowork-route.sh:*), Bash(claude agents:*), Bash(find:*)
 Show one compact table combining:
 
 - official Codex jobs via
-  `$CLAUDE_PLUGIN_ROOT/scripts/cowork-route.sh status "$ARGUMENTS"` when the
+  `$CLAUDE_PLUGIN_ROOT/skills/cowork-runtime/scripts/cowork-route.sh status "$ARGUMENTS"` when the
   router exits zero;
 - Claude background workers from `claude agents --cwd "$PWD" --all --json`;
 - Cowork Rally manifests under

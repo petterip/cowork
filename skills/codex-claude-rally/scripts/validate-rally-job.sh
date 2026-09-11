@@ -10,6 +10,14 @@ fail() {
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 request_validator="$script_dir/validate-rally-request.sh"
 
+sha256_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  else
+    shasum -a 256 "$1" | awk '{print $1}'
+  fi
+}
+
 [[ $# -eq 1 ]] || fail 'usage: validate-rally-job.sh <job-directory>'
 job_dir=$1
 [[ -d "$job_dir" && ! -L "$job_dir" ]] || fail 'job directory must be a real directory, not a symlink.'
@@ -45,7 +53,7 @@ if [[ "$state" != CREATED && "$state" != STOPPED || -n "$recorded_request_digest
   request="$job_dir/requests/$round.md"
   [[ -f "$request" && ! -L "$request" ]] || fail "immutable request is missing: requests/$round.md"
   "$request_validator" "$request" || fail "immutable request is incomplete: requests/$round.md"
-  request_digest=$(sha256sum "$request" | awk '{print $1}')
+  request_digest=$(sha256_file "$request")
   [[ "$recorded_request_digest" == "$request_digest" ]] || fail 'request digest changed after launch.'
 fi
 if [[ "$mode" == write && "$state" != CREATED ]]; then

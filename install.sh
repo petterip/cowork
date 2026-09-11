@@ -12,7 +12,7 @@ target=${2:-both}
 [[ "$target" == claude || "$target" == codex || "$target" == opencode || "$target" == copilot || "$target" == both || "$target" == all ]] || fail 'agent must be claude, codex, opencode, copilot, both, or all.'
 
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-cowork_skills=(cowork-plan cowork-build cowork-review cowork-continue cowork-status cowork-setup cowork-gemini cowork-copilot)
+cowork_skills=(cowork-plan cowork-build cowork-review cowork-continue cowork-status cowork-setup cowork-gemini cowork-copilot cowork-runtime)
 
 install_skill() {
   local source=$1

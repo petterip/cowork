@@ -42,7 +42,9 @@ Only the owner of the current state changes the manifest through `scripts/rallyc
 CREATED → RUNNING → WAITING_FOR_CODEX → VERIFYING → ACCEPTED
                                       └→ RUNNING
                                       └→ WAITING_FOR_HUMAN
-Any active state → STOPPED | REJECTED
+                                             └→ RUNNING
+                                             └→ STOPPED | REJECTED
+Other active states → STOPPED
 ```
 
 - `CREATED`: request is complete; no worker has started.
@@ -52,7 +54,9 @@ Any active state → STOPPED | REJECTED
 - `WAITING_FOR_HUMAN`: an immutable scope, base, path, or product decision is missing.
 - `ACCEPTED`, `REJECTED`, `STOPPED`: terminal states.
 
-Count a follow-up only when `VERIFYING` returns to `RUNNING`. Cap it at two.
+Count a follow-up when `VERIFYING` or `WAITING_FOR_HUMAN` returns to
+`RUNNING`. Cap it at two and require a new immutable request for the next
+round.
 `CREATED -> RUNNING` and every follow-up launch validate that all request
 sections contain real content and no template placeholders remain.
 

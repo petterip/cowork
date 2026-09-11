@@ -6,6 +6,11 @@ fail() {
   exit 1
 }
 
+if [[ "${1-}" == --help ]]; then
+  printf '%s\n' 'usage: cowork-route.sh <review|adversarial-review|transfer|status> [arguments]'
+  exit 0
+fi
+
 [[ $# -ge 1 ]] || fail 'usage: cowork-route.sh <review|adversarial-review|transfer|status> [arguments]'
 action=$1
 arguments=${2:-}

@@ -46,7 +46,7 @@ rg -Fq 'cowork-route.sh transfer' "$plugin_root/commands/continue.md"
 rg -Fq 'claude plugin list' "$plugin_root/commands/setup.md"
 rg -Fq 'fallback' "$plugin_root/commands/setup.md"
 
-for skill in plan build review continue status setup gemini copilot; do
+for skill in plan build review continue status setup gemini copilot runtime; do
   [[ -f "$repo_root/skills/cowork-$skill/SKILL.md" ]]
 done
 
@@ -56,12 +56,13 @@ if rg -n '/cowork:(plan-with-docs|review-plan|handoff)' "$repo_root/README.md" "
 fi
 
 for skill_dir in "$plugin_root"/skills/*; do
+  [[ -d "$skill_dir" ]] || continue
   skill=${skill_dir##*/}
   [[ -f "$skill_dir/SKILL.md" ]]
   rg -q "^name: $skill$" "$skill_dir/SKILL.md"
 done
 
-for script in "$plugin_root"/scripts/*.sh "$plugin_root"/skills/codex-claude-rally/scripts/*.sh; do
+for script in "$plugin_root"/skills/cowork-runtime/scripts/*.sh "$plugin_root"/skills/codex-claude-rally/scripts/*.sh; do
   [[ -x "$script" ]]
 done
 
@@ -77,6 +78,13 @@ if rg -n 'plugins/cowork/(workflows|skills)|CLAUDE_PLUGIN_ROOT/workflows' "$repo
   exit 1
 fi
 
+if rg -n 'CLAUDE_PLUGIN_ROOT/scripts|COWORK_PLUGIN_ROOT|repo_root/scripts/(cowork-route|invoke-peer-review|resolve-model)' \
+  "$repo_root/commands" "$repo_root/skills" \
+  "$repo_root/tests/test_router.sh" "$repo_root/tests/test_resolve_model.sh" "$repo_root/tests/test_install.sh"; then
+  printf '%s\n' 'Legacy Cowork runtime paths remain.' >&2
+  exit 1
+fi
+
 if command -v claude >/dev/null 2>&1; then
   claude plugin validate "$plugin_root" >/dev/null
 fi
@@ -85,7 +93,7 @@ if command -v copilot >/dev/null 2>&1; then
   COPILOT_HOME="$tmp/copilot" copilot plugin marketplace add "$plugin_root" >/dev/null
   COPILOT_HOME="$tmp/copilot" copilot plugin install cowork@cowork >/dev/null
   discovered=$(COPILOT_HOME="$tmp/copilot" copilot skill list)
-  for skill in plan build review continue status setup gemini copilot; do
+  for skill in plan build review continue status setup gemini copilot runtime; do
     rg -q "^  cowork-$skill -" <<<"$discovered"
   done
 fi

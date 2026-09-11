@@ -11,10 +11,10 @@ default pairing and do not mention or invoke it.
 
 ## Invocation
 
-Resolve `COWORK_PLUGIN_ROOT` to the plugin root two directories above this
-skill's real base directory after following any symlink.
+Resolve this skill's real directory after following any symlink, then set
+`COWORK_RUNTIME_DIR` to its sibling `../cowork-runtime/scripts` directory.
 
-**Always go through `scripts/invoke-peer-review.sh`. Never call `agy`
+**Always go through `$COWORK_RUNTIME_DIR/invoke-peer-review.sh`. Never call `agy`
 directly.** Every guard in that script exists because a hand-written call
 failed in a way that looked like "Gemini is broken":
 
@@ -26,13 +26,13 @@ failed in a way that looked like "Gemini is broken":
 | review run inside the working tree | file writes are auto-allowed, so a "read-only" review can edit the repo |
 
 ```bash
-"$COWORK_PLUGIN_ROOT/scripts/invoke-peer-review.sh" agy auto \
+"$COWORK_RUNTIME_DIR/invoke-peer-review.sh" agy auto \
   --effort medium --prompt-file /tmp/review-prompt.txt
 ```
 
 - **Model.** Pass `auto` unless the user named an exact slug. `auto` resolves
   the newest Gemini Flash on the account at run time through
-  `scripts/resolve-model.sh --family gemini-flash --via agy --effort <effort>`,
+  `$COWORK_RUNTIME_DIR/resolve-model.sh --family gemini-flash --via agy --effort <effort>`,
   which reads the live `agy models` list. Never hard-code a generation: today's
   newest is not next month's. `COWORK_MODEL` wins over resolution when the user
   supplied an exact id. Announce the resolved slug at kickoff — the script
@@ -41,7 +41,7 @@ failed in a way that looked like "Gemini is broken":
 - **Prompt.** Put everything the peer needs *in the prompt*: the diff, the plan,
   the relevant source. State plainly that it must answer from the text alone and
   run nothing. `cowork-route.sh` does this for review actions by embedding
-  `git diff` and `git status --porcelain`; do the same for any prompt you build
+  `git diff`; do the same for any prompt you build
   yourself. Use `--prompt-file` rather than a giant shell argument.
 - **Size.** Prompts over 120 KB automatically go to `agy` on stdin as
   stream-json; over 1 MB the script refuses rather than truncating, because a

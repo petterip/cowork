@@ -203,9 +203,18 @@ scripts/validate-rally-job.sh "$RALLY_DIR"
 
 Read the immutable response, inspect the full allowed-path diff against the recorded base commit, and run the proof command yourself. Write the independent finding to `reviews/001.md`; append an event and transition to `ACCEPTED`, `WAITING_FOR_HUMAN`, or `RUNNING`.
 
-For a material fix, create `requests/002.md`; never overwrite round 001. Allow at most two transitions from `VERIFYING` back to `RUNNING`. Before any resume, re-run the subscription gate and verify the recorded base commit, worktree path, and allowed paths. Mismatch means `WAITING_FOR_HUMAN`. When `full_access_authorized` is true, resume Claude with `--dangerously-skip-permissions`. Before `ACCEPTED` or `REJECTED`, write the independent `reviews/001.md`; `rallyctl` stores its digest with the state transition.
+For a material fix or a resolved human decision, create `requests/002.md`;
+never overwrite round 001. Allow at most two transitions from `VERIFYING` or
+`WAITING_FOR_HUMAN` back to `RUNNING`. Before any resume, re-run the
+subscription gate and verify the recorded base commit, worktree path, and
+allowed paths. Mismatch means `WAITING_FOR_HUMAN`. When
+`full_access_authorized` is true, resume Claude with
+`--dangerously-skip-permissions`. Before `ACCEPTED` or `REJECTED`, write the
+independent `reviews/001.md`; `rallyctl` stores its digest with the state
+transition.
 
-For cancellation, use `claude stop <worker-id>`, preserve the artifacts, and transition to `STOPPED`.
+For cancellation, use `claude stop <worker-id>`, preserve the artifacts, and
+transition any active state, including `WAITING_FOR_HUMAN`, to `STOPPED`.
 
 ## Pair with the Claude skills
 

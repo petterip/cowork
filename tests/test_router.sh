@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-router="$repo_root/scripts/cowork-route.sh"
+router="$repo_root/skills/cowork-runtime/scripts/cowork-route.sh"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 fake_bin="$tmp/bin"

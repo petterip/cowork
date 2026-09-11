@@ -10,6 +10,14 @@ fail() {
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 request_validator="$script_dir/validate-rally-request.sh"
 
+sha256_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  else
+    shasum -a 256 "$1" | awk '{print $1}'
+  fi
+}
+
 [[ $# -ge 1 ]] || fail 'usage: rallyctl.sh <bind-worker|record-worker|transition> ...'
 command=$1
 shift
@@ -136,7 +144,7 @@ transition_locked() {
   state=$(jq -r '.state' "$manifest")
   [[ "$state" == "$expected" ]] || fail "expected state $expected, found $state."
   case "$state:$next" in
-    CREATED:RUNNING|RUNNING:WAITING_FOR_CODEX|WAITING_FOR_CODEX:VERIFYING|VERIFYING:ACCEPTED|VERIFYING:REJECTED|VERIFYING:WAITING_FOR_HUMAN|VERIFYING:RUNNING|RUNNING:WAITING_FOR_HUMAN|CREATED:STOPPED|RUNNING:STOPPED|WAITING_FOR_CODEX:STOPPED|VERIFYING:STOPPED) ;;
+    CREATED:RUNNING|RUNNING:WAITING_FOR_CODEX|WAITING_FOR_CODEX:VERIFYING|VERIFYING:ACCEPTED|VERIFYING:REJECTED|VERIFYING:WAITING_FOR_HUMAN|VERIFYING:RUNNING|RUNNING:WAITING_FOR_HUMAN|WAITING_FOR_HUMAN:RUNNING|CREATED:STOPPED|RUNNING:STOPPED|WAITING_FOR_CODEX:STOPPED|VERIFYING:STOPPED|WAITING_FOR_HUMAN:STOPPED|WAITING_FOR_HUMAN:REJECTED) ;;
     *) fail "illegal transition: $state -> $next." ;;
   esac
   mode=$(jq -r '.mode' "$manifest")
@@ -151,28 +159,28 @@ transition_locked() {
   if [[ "$state:$next" == CREATED:RUNNING ]]; then
     [[ -f "$request" && ! -L "$request" ]] || fail "missing immutable request: requests/$round.md"
     "$request_validator" "$request" || fail "request is incomplete: requests/$round.md"
-    request_digest=$(sha256sum "$request" | awk '{print $1}')
+    request_digest=$(sha256_file "$request")
   fi
   if [[ "$state:$next" == RUNNING:WAITING_FOR_CODEX ]]; then
     [[ -f "$response" && ! -L "$response" ]] || fail "missing immutable response: responses/$round.md"
-    response_digest=$(sha256sum "$response" | awk '{print $1}')
+    response_digest=$(sha256_file "$response")
   fi
   if [[ "$state:$next" == WAITING_FOR_CODEX:VERIFYING ]]; then
     [[ -f "$response" && ! -L "$response" ]] || fail "missing immutable response: responses/$round.md"
-    response_digest=$(sha256sum "$response" | awk '{print $1}')
+    response_digest=$(sha256_file "$response")
     [[ "$(jq -r --arg round "$round" '.artifact_digests.responses[$round] // empty' "$manifest")" == "$response_digest" ]] || fail 'response digest changed after publication.'
   fi
-  if [[ "$state:$next" == VERIFYING:RUNNING ]]; then
+  if [[ "$state:$next" == VERIFYING:RUNNING || "$state:$next" == WAITING_FOR_HUMAN:RUNNING ]]; then
     followup_count=$(jq -r '.followup_count // 0' "$manifest")
     (( followup_count < 2 )) || fail 'follow-up round limit reached; require human review.'
     next_round=$(printf '%03d' "$((10#$round + 1))")
     [[ -f "$job_dir/requests/$next_round.md" && ! -L "$job_dir/requests/$next_round.md" ]] || fail "missing immutable follow-up request: requests/$next_round.md"
     "$request_validator" "$job_dir/requests/$next_round.md" || fail "follow-up request is incomplete: requests/$next_round.md"
-    request_digest=$(sha256sum "$job_dir/requests/$next_round.md" | awk '{print $1}')
+    request_digest=$(sha256_file "$job_dir/requests/$next_round.md")
   fi
   if [[ "$state:$next" == VERIFYING:ACCEPTED || "$state:$next" == VERIFYING:REJECTED ]]; then
     [[ -f "$review" && ! -L "$review" ]] || fail "missing independent review: reviews/$round.md"
-    review_digest=$(sha256sum "$review" | awk '{print $1}')
+    review_digest=$(sha256_file "$review")
   fi
   now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   content=$(jq --arg state "$next" --arg actor "$actor" --arg now "$now" \
@@ -181,7 +189,7 @@ transition_locked() {
       if $request_digest != "" then .artifact_digests.requests[$round] = $request_digest else . end |
       if $response_digest != "" then .artifact_digests.responses[$round] = $response_digest else . end |
       if $review_digest != "" then .artifact_digests.reviews[$round] = $review_digest else . end |
-      if $from_state == "VERIFYING" and $next == "RUNNING" then
+      if ($from_state == "VERIFYING" or $from_state == "WAITING_FOR_HUMAN") and $next == "RUNNING" then
         .round = (.round + 1) | .followup_count = ((.followup_count // 0) + 1) |
         .artifact_digests.requests[$next_round] = $request_digest
       else . end' \

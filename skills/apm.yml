@@ -1,0 +1,27 @@
+name: cowork-skills
+version: "1.3.1"
+description: Cross-model planning, building, review, and handoff skills
+author: Petteri Ponsimaa
+license: MIT
+
+dependencies:
+  apm:
+    - ./claude-handoff
+    - ./codex-build
+    - ./codex-claude-rally
+    - ./codex-review
+    - ./cowork-build
+    - ./cowork-continue
+    - ./cowork-copilot
+    - ./cowork-gemini
+    - ./cowork-plan
+    - ./cowork-review
+    - ./cowork-runtime
+    - ./cowork-setup
+    - ./cowork-status
+    - ./grill-me-codex
+    - ./grill-with-docs-codex
+  mcp: []
+
+includes: auto
+scripts: {}

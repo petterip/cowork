@@ -6,6 +6,11 @@ fail() {
   exit 1
 }
 
+if [[ "${1-}" == --help ]]; then
+  printf '%s\n' 'usage: resolve-model.sh --family <gemini-flash|auto> --via <agy|copilot> [--effort <low|medium|high>]'
+  exit 0
+fi
+
 family=''
 via=''
 effort='medium'

@@ -11,15 +11,16 @@ is a different tool and is not this path.
 
 ## Invocation
 
-Resolve `COWORK_PLUGIN_ROOT` to the plugin root two directories above this
-skill's real base directory after following any symlink.
+Resolve this skill's real directory after following any symlink, then set
+`COWORK_RUNTIME_DIR` to its sibling `../cowork-runtime/scripts` directory.
 
 - Non-interactive reviews use `copilot -p` with `-s` and `--no-ask-user`.
   Allow only `git status`, `git diff`, `git log`, and `git show`. Do not pass
   `--allow-all`, `--yolo`, or `shell(git:*)`.
 - Never hard-code a model version. For Copilot's own picker, resolve with
-  `$COWORK_PLUGIN_ROOT/scripts/resolve-model.sh --family auto --via copilot`,
-  or simply pass `auto` to `scripts/invoke-peer-review.sh`, which resolves it
+  `$COWORK_RUNTIME_DIR/resolve-model.sh --family auto --via copilot`,
+  or simply pass `auto` to
+  `$COWORK_RUNTIME_DIR/invoke-peer-review.sh`, which resolves it
   (prints `auto`). For Gemini Flash through Copilot, use
   `--family gemini-flash --via copilot`. `COWORK_MODEL` or `--model` supplies
   an exact slug when the user named one.

@@ -9,7 +9,7 @@ HOME="$tmp/home" CODEX_HOME="$tmp/custom-codex" \
   "$repo_root/install.sh" --agent codex >/dev/null
 
 [[ "$(readlink -f "$tmp/custom-codex/cowork")" == "$repo_root" ]]
-for command in plan build review continue status setup gemini copilot; do
+for command in plan build review continue status setup gemini copilot runtime; do
   link="$tmp/custom-codex/skills/cowork-$command"
   [[ -L "$link" ]]
   [[ "$(readlink -f "$link")" == "$repo_root/skills/cowork-$command" ]]
@@ -19,7 +19,7 @@ done
 HOME="$tmp/home" CODEX_HOME="$tmp/custom-codex" \
   "$repo_root/install.sh" --agent opencode >/dev/null
 
-for command in plan build review continue status setup gemini copilot; do
+for command in plan build review continue status setup gemini copilot runtime; do
   link="$tmp/home/.config/opencode/skills/cowork-$command"
   [[ -L "$link" ]]
   [[ "$(readlink -f "$link")" == "$repo_root/skills/cowork-$command" ]]
@@ -28,7 +28,7 @@ done
 HOME="$tmp/home" CODEX_HOME="$tmp/custom-codex" \
   "$repo_root/install.sh" --agent copilot >/dev/null
 
-for command in plan build review continue status setup gemini copilot; do
+for command in plan build review continue status setup gemini copilot runtime; do
   link="$tmp/home/.copilot/skills/cowork-$command"
   [[ -L "$link" ]]
   [[ "$(readlink -f "$link")" == "$repo_root/skills/cowork-$command" ]]
@@ -43,7 +43,7 @@ HOME="$tmp/home" CODEX_HOME="$tmp/custom-codex" \
 HOME="$tmp/home-copilot-only" CODEX_HOME="$tmp/copilot-only" \
   "$repo_root/install.sh" --agent copilot >/dev/null
 [[ "$(readlink -f "$tmp/copilot-only/cowork")" == "$repo_root" ]]
-[[ -x "$tmp/copilot-only/cowork/scripts/resolve-model.sh" ]]
+[[ -x "$tmp/copilot-only/cowork/skills/cowork-runtime/scripts/resolve-model.sh" ]]
 [[ ! -e "$tmp/home-copilot-only/.codex" ]]
 
 mkdir -p "$tmp/collision/cowork"

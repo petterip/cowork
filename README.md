@@ -86,6 +86,25 @@ Install everywhere (Claude Code, Codex, opencode, and Copilot skills):
 ./install.sh --agent all
 ```
 
+### APM
+
+The `skills/` directory is Cowork's canonical multi-skill APM package. Its
+manifest composes the sibling skills without copying their files. Pin the
+repository to an immutable commit and select that subpath:
+
+```yaml
+dependencies:
+  apm:
+    - git: https://github.com/petterip/cowork.git
+      path: skills
+      ref: <40-character-commit-sha>
+```
+
+Then run `apm install`. APM deploys the same Agent Skills to Copilot, Claude
+Code, and Codex through the targets configured by the consuming project. The
+internal `cowork-runtime` skill carries the shared scripts; no repository-wide
+support directory or copied Cowork snapshot is required.
+
 The official `codex@openai-codex` Claude Code plugin is optional. When present,
 Cowork uses its review, adversarial-review, status, and session-transfer paths.
 Without it, normal reviews use the local Codex CLI; `continue` creates a fresh
@@ -121,6 +140,7 @@ tests/test_claude_plugin.sh
 tests/test_router.sh
 tests/test_install.sh
 tests/test_resolve_model.sh
+tests/test_apm_package.sh
 skills/codex-claude-rally/scripts/test_contract.sh
 ```
 

@@ -48,7 +48,7 @@ mkdir -p "$fake_home/.codex"
 mv "$fake_home/.codex-config" "$fake_home/.codex/config.toml"
 
 output=$(PATH="$test_path" HOME="$fake_home" XDG_STATE_HOME="$fake_state" "$verifier")
-for check in 'Codex CLI: PASS' 'Claude Code CLI: PASS' 'jq: PASS' 'git: PASS' 'Subscription authentication: PASS' 'Full-access inheritance: PASS' 'External artifact root: PASS'; do
+for check in 'Codex CLI: PASS' 'Claude Code CLI: PASS' 'jq: PASS' 'git: PASS' 'SHA-256 tool: PASS' 'Subscription authentication: PASS' 'Full-access inheritance: PASS' 'External artifact root: PASS'; do
   grep -Fq "$check" <<<"$output"
 done
 
@@ -131,6 +131,13 @@ write_request "$readonly_job/requests/001.md"
 [[ "$(jq -r '.claude_worker_id' "$readonly_job/manifest.json")" == worker-1 ]] || fail 'worker ID was not recorded.'
 [[ "$(jq -r '.claude_session_id' "$readonly_job/manifest.json")" == session-1 ]] || fail 'worker session ID was not completed.'
 expect_failure "$rallyctl" record-worker "$readonly_job" worker-2 session-2 "$repo"
+"$rallyctl" transition "$readonly_job" RUNNING WAITING_FOR_HUMAN claude
+write_request "$readonly_job/requests/002.md"
+"$rallyctl" transition "$readonly_job" WAITING_FOR_HUMAN RUNNING codex
+[[ "$(jq -r '.round' "$readonly_job/manifest.json")" == 2 ]] || fail 'human-approved resume did not increment the round.'
+"$rallyctl" transition "$readonly_job" RUNNING WAITING_FOR_HUMAN claude
+"$rallyctl" transition "$readonly_job" WAITING_FOR_HUMAN STOPPED human
+"$skill_dir/scripts/validate-rally-job.sh" "$readonly_job"
 
 stopped_template_job=$(cd "$tmp" && PATH="$test_path" HOME="$fake_home" XDG_STATE_HOME="$fake_state" \
   "$skill_dir/scripts/create-rally-job.sh" stopped-template-job read-only --repo "$repo")

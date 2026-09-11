@@ -16,6 +16,7 @@ fail() {
 }
 
 usage() {
+  local status=${1:-1}
   cat >&2 <<'USAGE'
 usage: invoke-peer-review.sh <agy|copilot> <model|auto> (<prompt> | --prompt-file <path>)
 
@@ -35,11 +36,12 @@ Environment:
                            120000, just under the kernel's 128 KiB limit for a
                            single argument.
 USAGE
-  exit 1
+  exit "$status"
 }
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
+[[ "${1-}" != --help ]] || usage 0
 [[ $# -ge 3 ]] || usage
 via=$1
 model=$2
