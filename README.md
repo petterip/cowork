@@ -2,8 +2,7 @@
 
 Use one model to plan, build, review, or continue work with another. Cowork
 selects the direction from the environment and keeps material work bounded and
-verifiable. Claude, Codex, Gemini Flash, and GitHub Copilot are peers; the
-plugin never ships a model version string.
+verifiable. Claude, Codex, Gemini Flash, and GitHub Copilot are peers.
 
 ## Commands
 
@@ -45,9 +44,6 @@ Claude Code:
 /plugin install cowork@cowork
 /reload-plugins
 ```
-
-The previous marketplace id `petterip/cowork-claude-codex` redirects here
-after the repository rename.
 
 Codex:
 
