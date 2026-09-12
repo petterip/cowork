@@ -8,49 +8,49 @@ dependencies:
   apm:
     - git: https://github.com/petterip/cowork.git
       path: skills/claude-handoff
-      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+      ref: f1a897f5450b3eb5a5c86e3e4e418743669f5b95
     - git: https://github.com/petterip/cowork.git
       path: skills/codex-build
-      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+      ref: f1a897f5450b3eb5a5c86e3e4e418743669f5b95
     - git: https://github.com/petterip/cowork.git
       path: skills/codex-claude-rally
-      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+      ref: f1a897f5450b3eb5a5c86e3e4e418743669f5b95
     - git: https://github.com/petterip/cowork.git
       path: skills/codex-review
-      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+      ref: f1a897f5450b3eb5a5c86e3e4e418743669f5b95
     - git: https://github.com/petterip/cowork.git
       path: skills/cowork-build
-      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+      ref: f1a897f5450b3eb5a5c86e3e4e418743669f5b95
     - git: https://github.com/petterip/cowork.git
       path: skills/cowork-continue
-      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+      ref: f1a897f5450b3eb5a5c86e3e4e418743669f5b95
     - git: https://github.com/petterip/cowork.git
       path: skills/cowork-copilot
-      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+      ref: f1a897f5450b3eb5a5c86e3e4e418743669f5b95
     - git: https://github.com/petterip/cowork.git
       path: skills/cowork-gemini
-      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+      ref: f1a897f5450b3eb5a5c86e3e4e418743669f5b95
     - git: https://github.com/petterip/cowork.git
       path: skills/cowork-plan
-      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+      ref: f1a897f5450b3eb5a5c86e3e4e418743669f5b95
     - git: https://github.com/petterip/cowork.git
       path: skills/cowork-review
-      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+      ref: f1a897f5450b3eb5a5c86e3e4e418743669f5b95
     - git: https://github.com/petterip/cowork.git
       path: skills/cowork-runtime
-      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+      ref: f1a897f5450b3eb5a5c86e3e4e418743669f5b95
     - git: https://github.com/petterip/cowork.git
       path: skills/cowork-setup
-      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+      ref: f1a897f5450b3eb5a5c86e3e4e418743669f5b95
     - git: https://github.com/petterip/cowork.git
       path: skills/cowork-status
-      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+      ref: f1a897f5450b3eb5a5c86e3e4e418743669f5b95
     - git: https://github.com/petterip/cowork.git
       path: skills/grill-me-codex
-      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+      ref: f1a897f5450b3eb5a5c86e3e4e418743669f5b95
     - git: https://github.com/petterip/cowork.git
       path: skills/grill-with-docs-codex
-      ref: 1ef900f32649fb42351536d7b72c8ec14b044f63
+      ref: f1a897f5450b3eb5a5c86e3e4e418743669f5b95
   mcp: []
 
 includes: auto
