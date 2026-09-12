@@ -1,6 +1,7 @@
 ---
 name: cowork-gemini
 description: Delegate cowork work to Gemini Flash via the Anti-Gravity CLI (agy). Use ONLY when the user explicitly asks for Gemini or Anti-Gravity; otherwise cowork pairs Codex with Claude.
+compatibility: Requires Bash, Git, jq, a SHA-256 utility, and authenticated Claude Code and Codex CLIs for the default peer pair. Gemini (agy) and GitHub Copilot CLI are optional peers.
 ---
 
 # Gemini via Anti-Gravity CLI

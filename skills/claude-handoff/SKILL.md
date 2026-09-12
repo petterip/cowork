@@ -1,6 +1,7 @@
 ---
 name: claude-handoff
-description: Hand the current conversation off to a fresh Claude Code background agent that picks up the work immediately.
+description: "Use only when cowork-continue selects a fresh Claude background session, or when claude-handoff is explicitly requested by name. General requests to move work to another model enter through cowork-continue for host-aware routing."
+compatibility: Requires Bash, Git, jq, a SHA-256 utility, and authenticated Claude Code and Codex CLIs for the default peer pair. Gemini (agy) and GitHub Copilot CLI are optional peers.
 ---
 
 Write a handoff summary of the current conversation so a fresh agent can continue the work. Resolve `RALLY_SCRIPTS` to `../codex-claude-rally/scripts` relative to this skill's real base directory after following any symlink, then run `"$RALLY_SCRIPTS/assert-subscription-auth.sh"`. If it fails, do not launch Claude or change credentials; report the blocker.

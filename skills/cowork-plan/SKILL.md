@@ -1,9 +1,15 @@
 ---
 name: cowork-plan
-description: Plan work in Codex and use an independent second model. Use when requirements need clarification, an implementation plan needs challenge, or documentation-aware planning is requested before code.
+description: Use when work needs planning with an independent second model. Use when requirements need clarification, an implementation plan needs challenge, or documentation-aware planning is requested before code.
+compatibility: Requires Bash, Git, jq, a SHA-256 utility, and authenticated Claude Code and Codex CLIs for the default peer pair. Gemini (agy) and GitHub Copilot CLI are optional peers.
 ---
 
 # Plan
+
+First read `../cowork-runtime/references/host-routing.md` relative to this
+skill's real directory after resolving symlinks. Select the peer for the active
+host and preserve explicit user choices. For a Codex peer, complete the
+reference's route and stop; the procedure below is for a Claude peer.
 
 Resolve the goal and write a bounded implementation plan. For material work,
 read `../codex-claude-rally/SKILL.md` relative to this skill's real base

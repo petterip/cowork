@@ -1,6 +1,7 @@
 ---
 name: codex-review
-description: "Cross-model plan review: Claude drafts or loads PLAN.md, Codex critiques it in a read-only sandbox, and Claude revises in the same Codex session until APPROVED or MAX_ROUNDS. Require human approval before implementation. Use through /cowork:plan when an existing implementation plan needs adversarial review or high-stakes work needs a second-model check. Do not use for trivial changes or existing-code review."
+description: "Use only when cowork-plan or the native plan command selects Codex to review an existing implementation plan, or when codex-review is explicitly requested by name. For general planning requests, enter through cowork-plan so the active host selects an independent peer. Do not use for code or diff review."
+compatibility: Requires Bash, Git, jq, a SHA-256 utility, and authenticated Claude Code and Codex CLIs for the default peer pair. Gemini (agy) and GitHub Copilot CLI are optional peers.
 ---
 
 # Codex-Review — Adversarial Plan-Review Loop

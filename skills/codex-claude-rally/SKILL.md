@@ -1,6 +1,7 @@
 ---
 name: codex-claude-rally
-description: "Delegate bounded work from Codex to a persistent Claude Code background worker and exchange verified results through durable, versioned job artifacts. Use when the user asks to hand work between Codex and Claude, request independent Claude implementation or review, or resume a Claude worker. Launch with claude --bg; print mode is only the documented idle-fallback."
+description: "Use only when a Cowork action selects a bounded Claude worker or an existing Rally job needs its protocol continued, or when codex-claude-rally is explicitly requested by name. General planning, build, review and handoff requests enter through the matching public Cowork skill for host-aware peer selection."
+compatibility: Requires Bash, Git, jq, a SHA-256 utility, and authenticated Claude Code and Codex CLIs for the default peer pair. Gemini (agy) and GitHub Copilot CLI are optional peers.
 ---
 
 # Codex-Claude Rally

@@ -1,9 +1,15 @@
 ---
 name: cowork-review
-description: Ask a second model to independently review the current Codex work. Use for code, diff, design, security, or regression review when a second model should challenge completed or in-progress changes without editing them.
+description: Use when a second model should independently review the current work. Use for code, diff, design, security, or regression review when a second model should challenge completed or in-progress changes without editing them.
+compatibility: Requires Bash, Git, jq, a SHA-256 utility, and authenticated Claude Code and Codex CLIs for the default peer pair. Gemini (agy) and GitHub Copilot CLI are optional peers.
 ---
 
 # Review
+
+First read `../cowork-runtime/references/host-routing.md` relative to this
+skill's real directory after resolving symlinks. Select the peer for the active
+host and preserve explicit user choices. For a Codex peer, complete the
+reference's route and stop; the procedure below is for a Claude peer.
 
 Read `../codex-claude-rally/SKILL.md` relative to this skill's real base
 directory after following any symlink, and create a read-only Claude review job.
@@ -11,7 +17,7 @@ Resolve the reviewed repository root from the user's task workspace and pass it
 explicitly with `--repo`; never create the job from the Cowork skill directory
 without that target. Give the exact base/diff scope and review focus. In
 read-only mode, allowed paths are review targets and declared source-of-truth
-files remain readable. Claude must not edit. Codex reads the immutable response,
+files remain readable. Claude must not edit. The initiating host reads the immutable response,
 verifies every finding against source, and owns all subsequent fixes.
 
 When the user explicitly asks for Gemini or Anti-Gravity, run the read-only

@@ -1,6 +1,7 @@
 ---
 name: codex-build
-description: "Cross-model implementation from a frozen spec: Codex builds in an isolated worktree, then Claude reviews the complete diff, runs proof, and sends bounded fixes to the same Codex session. Preserve dirty source checkouts and require human approval before applying or committing. Use through /cowork:build for well-specified refactors, migrations, reproducible bugs, and tests. Do not use for tiny edits, design work, existing-code review, or work requiring Claude-session-only tools."
+description: "Use only when cowork-build or the native build command selects a Codex builder, or when codex-build is explicitly requested by name. Preserve isolated worktrees, frozen specifications, independent proof and hand-back. General cross-model build requests enter through cowork-build."
+compatibility: Requires Bash, Git, jq, a SHA-256 utility, and authenticated Claude Code and Codex CLIs for the default peer pair. Gemini (agy) and GitHub Copilot CLI are optional peers.
 ---
 
 # Codex-Build — Codex Types, Claude Verifies

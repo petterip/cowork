@@ -1,6 +1,7 @@
 ---
 name: grill-with-docs-codex
-description: "Two-act, documentation-aware collaborative planning: Claude resolves requirements in frontier rounds against CONTEXT.md and ADRs, then Codex adversarially reviews PLAN.md read-only until APPROVED or MAX_ROUNDS. Require human sign-off before code. Use through /cowork:plan --docs for high-stakes plans needing terminology and architecture alignment plus a second-model review. Do not use for trivial changes or existing-code review."
+description: "Use only when cowork-plan or the native plan command selects documentation-aware requirements clarification followed by Codex review, or when grill-with-docs-codex is explicitly requested by name. General planning requests enter through cowork-plan; an existing plan takes precedence over this workflow."
+compatibility: Requires Bash, Git, jq, a SHA-256 utility, and authenticated Claude Code and Codex CLIs for the default peer pair. Gemini (agy) and GitHub Copilot CLI are optional peers.
 ---
 
 # Collaborative Plan with Docs — Align the Domain, Then Challenge the Plan

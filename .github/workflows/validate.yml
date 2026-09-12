@@ -1,0 +1,32 @@
+name: Verify Cowork
+
+on:
+  pull_request:
+  push:
+    branches: [main, feat/apm-package]
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install the verified APM CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/cowork-apm"
+          "$RUNNER_TEMP/cowork-apm/bin/pip" install --disable-pip-version-check 'apm-cli==0.30.0'
+          echo "$RUNNER_TEMP/cowork-apm/bin" >> "$GITHUB_PATH"
+      - name: Verify plugin, installer and runtime contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          tests/test_claude_plugin.sh
+          tests/test_router.sh
+          tests/test_install.sh
+          tests/test_resolve_model.sh
+          tests/test_apm_package.sh
+          skills/codex-claude-rally/scripts/test_contract.sh

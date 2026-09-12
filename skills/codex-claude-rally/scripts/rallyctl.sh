@@ -7,6 +7,11 @@ fail() {
   exit 1
 }
 
+if [[ "${1-}" == --help ]]; then
+  printf '%s\n' 'usage: rallyctl.sh <bind-worker|record-worker|transition> ...'
+  exit 0
+fi
+
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 request_validator="$script_dir/validate-rally-request.sh"
 

@@ -9,6 +9,9 @@ compatibility: Requires Bash and Git. Peer review additionally requires Codex, C
 This is an internal support skill. Follow the user-facing Cowork skill that
 loaded it; do not create a separate workflow from this file.
 
+For host and peer selection by a public Cowork action, read
+`references/host-routing.md`.
+
 Bundled scripts:
 
 - `scripts/cowork-route.sh --help` routes review, transfer, and status actions.

@@ -1,6 +1,7 @@
 ---
 name: grill-me-codex
-description: "Two-act collaborative planning: Claude resolves requirements in frontier rounds, then writes PLAN.md; Codex adversarially reviews it read-only until APPROVED or MAX_ROUNDS. Require human sign-off before code. Use through /cowork:plan for high-stakes planning, documentation-aware planning, existing-plan review, or directly when requirements need structured clarification and a second-model review. Do not use for trivial changes or existing-code review."
+description: "Use only when cowork-plan or the native plan command selects requirements clarification followed by Codex plan review, or when grill-me-codex is explicitly requested by name. Existing-plan review and documentation-aware planning use their selected sibling workflows."
+compatibility: Requires Bash, Git, jq, a SHA-256 utility, and authenticated Claude Code and Codex CLIs for the default peer pair. Gemini (agy) and GitHub Copilot CLI are optional peers.
 ---
 
 # Collaborative Plan — Resolve, Challenge, Then Build

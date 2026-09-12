@@ -88,11 +88,13 @@ Install everywhere (Claude Code, Codex, opencode, and Copilot skills):
 
 ### APM
 
-The `skills/` directory is Cowork's canonical multi-skill APM package. Its
-manifest composes immutable same-repository skill subpaths without copying
-their files. Pin the repository to an immutable commit and select that subpath:
+Use **APM 0.30.0** for the verified source and archive install paths. Check
+`apm --version`; upgrade with the package manager that installed APM.
+The `skills/` collection installs all 15 skills, including shared runtime
+scripts, Rally tools, and planning references. Pin the collection revision:
 
 ```yaml
+targets: [copilot, claude, codex, agent-skills]
 dependencies:
   apm:
     - git: https://github.com/petterip/cowork.git
@@ -100,10 +102,36 @@ dependencies:
       ref: <40-character-commit-sha>
 ```
 
-Then run `apm install`. APM deploys the same Agent Skills to Copilot, Claude
-Code, and Codex through the targets configured by the consuming project. The
-internal `cowork-runtime` skill carries the shared scripts; no repository-wide
-support directory or copied Cowork snapshot is required.
+Run `apm install` from the consuming repository. Select only the hosts you
+use; retain `agent-skills` for the shared `.agents/skills/` location. Claude
+also receives `.claude/skills/`. Commit the consumer manifest and lockfile.
+The collection pins its sibling skill revisions; updating those skills requires
+updating the collection pins as well as the consumer's collection revision.
+
+APM installs skills, not the native `/cowork:*` commands. Invoke
+`cowork-plan`, `cowork-build`, `cowork-review`, `cowork-continue`,
+`cowork-status`, or `cowork-setup` by name in your agent. Claude Code defaults
+to a Codex peer; Codex and Copilot default to Claude. Explicit peer choices
+use the selected adapter. Avoid installing the same skills through both APM
+and the native plugin in one host, which can create duplicate entrypoints.
+
+Before a first job, authenticate the selected CLIs and run `cowork-setup`.
+For an installation-only check that does not launch a model:
+
+```bash
+.agents/skills/cowork-runtime/scripts/cowork-route.sh --help
+.agents/skills/codex-claude-rally/scripts/rallyctl.sh --help
+```
+
+Bash, Git, `jq`, and `sha256sum` or `shasum` are required. Use a POSIX
+shell on macOS/Linux or WSL. APM installs neither peer CLIs nor credentials.
+If skills are missing, check the **consumer's** targets and restart/reload the
+host. If scripts are missing, reinstall the complete collection with the
+verified APM version; do not copy a single public skill without its siblings.
+
+APM 0.30.0 archives preserve these resources. Both source and installed-runtime
+contracts are checked by `tests/test_apm_package.sh`; this requires network
+access to the pinned public repository and fails if APM is absent.
 
 The official `codex@openai-codex` Claude Code plugin is optional. When present,
 Cowork uses its review, adversarial-review, status, and session-transfer paths.
