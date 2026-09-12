@@ -23,17 +23,48 @@ Codex peer; Opus and Fable are Claude models inside the rally worker
 a requested model name to its peer CLI and that peer's own model surface —
 never probe for a binary named after the model.
 
+When a request names both a peer and a model, the peer wins: "Copilot Opus"
+means the newest Opus model in Copilot's live catalog, while "Codex Terra low"
+means the newest Terra model reported by Codex with low reasoning effort.
+Those names are examples, not a built-in matrix. Any family reported later by
+the explicitly selected Copilot or Codex CLI is resolved the same way, and
+requested effort names are forwarded to that CLI for validation.
+
 Gemini Flash is an explicit opt-in: `/cowork:review --gemini` uses the
 Antigravity CLI (`agy`) and resolves the current Flash slug from `agy models`.
 `--copilot` uses the GitHub Copilot CLI (`copilot` from `@github/copilot`).
 `--gemini --copilot` resolves the current Gemini Flash id from Copilot's live
-model list. Pass `--model <slug>` or set `COWORK_MODEL` only when you need an
+model list reported by `copilot help config`. Pass `--model <slug>` or set
+`COWORK_MODEL` only when you need an
 exact id; the plugin does not keep versions in source.
 
 `plan` also covers documentation-aware planning and review of an existing
 plan. `build` requires an approved plan and independent proof. `review` never
 edits. `continue` transfers the current context without pretending it is a
 verified build.
+
+## Usage examples
+
+From Codex or GitHub Copilot CLI, ask the `cowork-review` skill to review local
+changes with Opus:
+
+```text
+cowork-review Review the changes made with cowork using Opus. Focus on boundary regressions.
+```
+
+Cowork resolves Opus to the local Claude peer, reviews the working tree
+read-only with `claude --model opus`, and leaves the initiating model to verify
+and apply any findings.
+
+From Claude Code, build a frozen plan with GPT-6 Astra at low reasoning effort:
+
+```text
+/cowork:build PLAN.md with GPT-6 Astra at low reasoning effort, then have cowork independently review the result.
+```
+
+Cowork runs the isolated Codex builder with `-m gpt-6-astra -c
+model_reasoning_effort=low`. Claude then inspects the complete diff and runs the
+plan's proof command independently before asking whether to apply or commit it.
 
 ## Install
 

@@ -42,11 +42,28 @@ printf 'agy:%s\n' "$*" >>"$COWORK_TEST_LOG"
 EOF
 cat >"$fake_bin/copilot" <<'EOF'
 #!/usr/bin/env bash
-if [[ "${1-}" == /model ]]; then
-  printf '%s\n' '[{"id":"gemini-3.5-flash"},{"id":"gemini-4.1-flash"}]'
+if [[ "${1-} ${2-}" == "help config" ]]; then
+  printf '%s\n' \
+    '  `model`: AI model to use:' \
+    '    - "gemini-3.5-flash"' \
+    '    - "gemini-4.1-flash"' \
+    '    - "claude-opus-4.6"' \
+    '    - "gpt-6-luna"' \
+    '    - "future-nebula-17"' \
+    '' \
+    '  `contextTier`: Context tier.'
   exit 0
 fi
 printf 'copilot:%s\n' "$*" >>"$COWORK_TEST_LOG"
+EOF
+cat >"$fake_bin/codex" <<'EOF'
+#!/usr/bin/env bash
+if [[ "${1-} ${2-}" == "debug models" ]]; then
+  printf '%s\n' '{"models":[{"slug":"gpt-6-astra"},{"slug":"gpt-6-terra"},{"slug":"future-orion-42"}]}'
+  exit 0
+fi
+printf 'codex:%s\n' "$*" >>"$COWORK_TEST_LOG"
+printf 'codex-argc:%s\n' "$#" >>"$COWORK_TEST_LOG"
 EOF
 chmod +x "$fake_bin/node" "$fake_bin/codex" "$fake_bin/agy" "$fake_bin/copilot"
 
@@ -106,6 +123,61 @@ grep -Fq 'gemini-4.2-flash-high' "$log"
   COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review '--copilot')
 grep -Fq 'copilot:-p' "$log"
 grep -Fq -- '--model=auto' "$log"
+grep -Fq -- '--effort=medium' "$log"
+
+: >"$log"
+(cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review \
+  '--copilot --model-family=opus --effort=high')
+grep -Fq 'copilot:-p' "$log"
+grep -Fq -- '--model=claude-opus-4.6' "$log"
+grep -Fq -- '--effort=high' "$log"
+
+: >"$log"
+(cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review \
+  '--copilot --model-family=luna --effort=high')
+grep -Fq -- '--model=gpt-6-luna' "$log"
+grep -Fq -- '--effort=high' "$log"
+
+: >"$log"
+(cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review \
+  '--copilot --model-family=nebula --effort=max')
+grep -Fq -- '--model=future-nebula-17' "$log"
+grep -Fq -- '--effort=max' "$log"
+
+: >"$log"
+(cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_MODEL=wrong-slug COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review \
+  '--copilot --model-family=nebula --effort=max')
+grep -Fq -- '--model=future-nebula-17' "$log"
+
+: >"$log"
+(cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review \
+  '--codex --model-family=terra --effort=low')
+grep -Fq 'codex:-m gpt-6-terra -c model_reasoning_effort=low review --uncommitted' "$log"
+
+: >"$log"
+(cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review \
+  '--codex --model-family=orion --effort=xhigh')
+grep -Fq 'codex:-m future-orion-42 -c model_reasoning_effort=xhigh review --uncommitted' "$log"
+
+: >"$log"
+(cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review '--codex')
+grep -Fq 'codex:review --uncommitted' "$log"
+
+: >"$log"
+if PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review \
+  '--copilot --model-family=nebula --effort=../../unsafe' 2>"$tmp/route.err"; then
+  printf '%s\n' 'expected unsafe effort token to fail' >&2
+  exit 1
+fi
+grep -Fq 'CLI-safe level name' "$tmp/route.err"
 
 : >"$log"
 (cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
@@ -130,6 +202,6 @@ if PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
   printf '%s\n' 'expected --model without a peer to fail' >&2
   exit 1
 fi
-grep -Fq -- '--gemini or --copilot' "$tmp/route.err"
+grep -Fq -- '--codex, --gemini, or --copilot' "$tmp/route.err"
 
 printf '%s\n' 'Cowork router contract: PASS'

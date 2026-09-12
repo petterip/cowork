@@ -21,13 +21,13 @@ usage: invoke-peer-review.sh <agy|copilot> <model|auto> (<prompt> | --prompt-fil
 
   model      an exact slug, or `auto` (also the empty string) to resolve the
              latest Gemini Flash for agy / Copilot's own default.
-  --effort   low|medium|high, default medium (also COWORK_EFFORT).
+  --effort   peer-supported level name, default medium (also COWORK_EFFORT).
   --family   gemini-flash|auto; default gemini-flash for agy, auto for copilot.
              `--family gemini-flash --via copilot` asks Copilot for Gemini.
 
 Environment:
   COWORK_MODEL           exact slug, wins over resolution
-  COWORK_EFFORT          low|medium|high, default medium
+  COWORK_EFFORT          peer-supported level name, default medium
   COWORK_PRINT_TIMEOUT   print-mode ceiling, default 10m
   COWORK_PROMPT_MAX_BYTES  refuse prompts larger than this, default 1000000
   COWORK_ARGV_MAX_BYTES    above this, the prompt goes to agy on stdin as
@@ -60,7 +60,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ "$via" == agy || "$via" == copilot ]] || fail 'via must be agy or copilot.'
-[[ "$effort" == low || "$effort" == medium || "$effort" == high ]] || fail 'effort must be low, medium, or high.'
+[[ "$effort" =~ ^[[:alnum:]][[:alnum:]_.-]*$ ]] || fail 'effort must be a CLI-safe level name.'
 if [[ -z "$family" ]]; then
   if [[ "$via" == agy ]]; then family=gemini-flash; else family=auto; fi
 fi
@@ -86,7 +86,7 @@ fi
 
 # Resolution lives here, at the single choke point, so an unspecified model is
 # always the latest Flash rather than whatever the caller remembered.
-if [[ -n "${COWORK_MODEL-}" ]]; then
+if [[ (-z "$model" || "$model" == auto) && -n "${COWORK_MODEL-}" ]]; then
   model=$COWORK_MODEL
 elif [[ -z "$model" || "$model" == auto ]]; then
   model=$("$script_dir/resolve-model.sh" --family "$family" --via "$via" --effort "$effort")
@@ -161,7 +161,7 @@ command -v copilot >/dev/null 2>&1 || fail 'the GitHub Copilot CLI (copilot) is 
 if (( prompt_bytes > ${COWORK_ARGV_MAX_BYTES:-120000} )); then
   fail "prompt is ${prompt_bytes} bytes, which exceeds what can be passed to copilot as an argument; narrow the scope or use --via agy."
 fi
-exec copilot -p "$prompt" -s --no-ask-user --model="$model" \
+exec copilot -p "$prompt" -s --no-ask-user --model="$model" --effort="$effort" \
   --allow-tool='shell(git status:*)' \
   --allow-tool='shell(git diff:*)' \
   --allow-tool='shell(git log:*)' \

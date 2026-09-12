@@ -13,9 +13,22 @@ Adapted from Peter Steinberger's `codex-first` pattern (agent-scripts), rebuilt 
 
 ## Prerequisites (verify once, fast)
 
+- Resolve `COWORK_PLUGIN_ROOT` to the plugin root two directories above this
+  skill before invoking its scripts.
 - `codex --version` ≥ 0.130 (older CLIs error on the default `gpt-5.5` model).
 - Codex authenticated (prior `codex login`; ChatGPT account is fine). On auth/model error, surface it — don't silently retry.
 - Do NOT pin `-m` or model config (e.g. `model_reasoning_effort`) unless the user asks. Pinning `gpt-5.x-codex` variants 400s on ChatGPT-account auth; config defaults come from `~/.codex/config.toml`.
+- When the user names a Codex model or reasoning effort, pin whichever was
+  named — each is resolved independently, so a model without an effort (or
+  vice versa) is normal — for every fresh build invocation. Resolve a family
+  name from Codex's live catalog with
+  `$COWORK_PLUGIN_ROOT/scripts/resolve-model.sh --family named --via codex
+  --query "<requested family>"`; use a full slug directly only when the user
+  supplied it. Pass a requested effort unchanged as
+  `-c model_reasoning_effort=<level>` and let Codex validate support. These are
+  `codex exec` options, not text for the build prompt. Do not probe for a
+  model-named binary, invent a version, or silently fall back to the configured
+  model if the requested model is unavailable.
 - **Echo the active model at kickoff** so the user can confirm: read the `model` line from `~/.codex/config.toml` (absent = "CLI default"); state it with the resolved tunables. If the user objects, stop before launching the build.
 - **Codex has a native image-generation tool** in `codex exec` sessions (ChatGPT-account backed, no API key; verified 2026-07-08 — it saved a generated PNG to disk headless). Specs may therefore include "generate these image assets yourself" steps: name exact file paths, dimensions, and style in the prompt contract.
 - Resolve the target repo root first. Codex runs from the isolated worker root
@@ -31,6 +44,28 @@ Adapted from Peter Steinberger's `codex-first` pattern (agent-scripts), rebuilt 
 | `PROOF_CMD` | spec `## Verification` | Exact test/verify command Codex must run as proof. Read it from the spec's Verification section. If that section is missing or empty, ask the user ONE question to get it before launching. |
 
 Echo resolved values before starting.
+
+`CODEX_ARGS` always starts empty. A requested model and a requested effort are
+each resolved independently — one without the other is normal — and appended
+only when the user actually asked for it:
+
+```bash
+CODEX_ARGS=()
+if [[ -n "${CODEX_MODEL:-}" ]]; then
+  CODEX_ARGS+=(-m "$CODEX_MODEL")
+fi
+if [[ -n "${CODEX_EFFORT:-}" ]]; then
+  CODEX_ARGS+=(-c "model_reasoning_effort=$CODEX_EFFORT")
+fi
+```
+
+`CODEX_MODEL` and `CODEX_EFFORT` themselves come from the user's exact
+request, not a default. Resolve a non-slug model name from the live Codex
+catalog at invocation time; this applies equally to models published after
+this skill. Pass a requested effort verbatim after validating it as a safe
+level token. Leave `CODEX_ARGS` empty when neither setting was requested.
+Preserve the same array for fix-round resumes so the named model and effort
+never drift.
 
 ## Step 0 — Gates (before any Codex launch)
 
@@ -73,7 +108,7 @@ trap 'rm -rf "$BUILD_DIR"' EXIT
 BUILD_REPORT="$BUILD_DIR/report.md"
 BUILD_EVENTS="$BUILD_DIR/events.jsonl"
 BUILD_STDERR="$BUILD_DIR/stderr.log"
-if ! timeout 600 codex exec --dangerously-bypass-approvals-and-sandbox --json -o "$BUILD_REPORT" - <"$P" >"$BUILD_EVENTS" 2>"$BUILD_STDERR"; then
+if ! timeout 600 codex exec "${CODEX_ARGS[@]}" --dangerously-bypass-approvals-and-sandbox --json -o "$BUILD_REPORT" - <"$P" >"$BUILD_EVENTS" 2>"$BUILD_STDERR"; then
   printf 'Codex build failed; inspect %s and %s.\n' "$BUILD_EVENTS" "$BUILD_STDERR" >&2
   exit 1
 fi
@@ -102,7 +137,7 @@ Problems found → resume the SAME session (Codex keeps its context; cheaper and
 ```bash
 # resume has no --yolo and no -C: run from the repo dir and spell the long flag,
 # or Codex inherits config.toml's sandbox (possibly read-only) and can't write.
-if ! timeout 600 codex exec resume "$THREAD_ID" --dangerously-bypass-approvals-and-sandbox --json \
+if ! timeout 600 codex exec "${CODEX_ARGS[@]}" resume "$THREAD_ID" --dangerously-bypass-approvals-and-sandbox --json \
   -o "$BUILD_REPORT" - <"$P2" >"$BUILD_EVENTS" 2>"$BUILD_STDERR"
 then
   printf 'Codex build resume failed; inspect %s and %s.\n' "$BUILD_EVENTS" "$BUILD_STDERR" >&2
@@ -120,7 +155,13 @@ Present: 3-bullet summary of what was built, files-changed list, proof-test outp
 - Apply or commit ONLY on yes — and Claude performs the hand-back, never Codex.
 - Rejected → ask what's wrong, route back to Step 4 (or take over directly if fix rounds are spent).
 
-If the user wants a second-provider inspection of the worker diff, run `/cowork:review` (or `cowork-review`) in a **fresh** read-only session. Do not reuse the builder session, and do not treat the earlier review as covering later edits.
+Claude's Step 3 inspection of the complete Codex-authored diff and independent
+proof run is the cross-model review built into this workflow. A request to
+"build, then have cowork independently review" is satisfied by that required
+review; do not launch a redundant second job. If the user explicitly asks for
+an additional reviewer or another review model, run `/cowork:review` (or
+`cowork-review`) in a **fresh** read-only session. Do not reuse the builder
+session, and do not treat a review as covering edits made afterward.
 
 ## Hard rules
 

@@ -20,6 +20,6 @@ Model names never name CLIs, so availability is never checked with `which
 Claude models (Opus, Fable, Sonnet) through the `claude` peer, Gemini Flash
 through `agy`, Copilot-hosted models through `copilot`. Answer "is <model>
 available" from that peer's own model surface (`agy models`,
-`copilot /model --list --json`; Codex has none — its configured default is the
+the `model` list in `copilot help config`; Codex has none — its configured default is the
 authority and account auth decides which sibling slugs a real request
 accepts), resolving the slug live rather than guessing.

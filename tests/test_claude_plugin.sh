@@ -45,6 +45,17 @@ rg -Fq '/codex:rescue' "$plugin_root/commands/build.md"
 rg -Fq 'cowork-route.sh transfer' "$plugin_root/commands/continue.md"
 rg -Fq 'claude plugin list' "$plugin_root/commands/setup.md"
 rg -Fq 'fallback' "$plugin_root/commands/setup.md"
+rg -Fq -- '--family named --via codex' "$plugin_root/skills/codex-build/SKILL.md"
+rg -Fq 'models published after' "$plugin_root/skills/codex-build/SKILL.md"
+rg -Fq 'including families published after' "$plugin_root/skills/cowork-review/SKILL.md"
+rg -Fq 'CODEX_ARGS=()' "$plugin_root/skills/codex-build/SKILL.md"
+rg -Fq 'CODEX_ARGS+=(-m "$CODEX_MODEL")' "$plugin_root/skills/codex-build/SKILL.md"
+rg -Fq 'CODEX_ARGS+=(-c "model_reasoning_effort=$CODEX_EFFORT")' "$plugin_root/skills/codex-build/SKILL.md"
+rg -Fq 'codex exec "${CODEX_ARGS[@]}" --dangerously-bypass-approvals-and-sandbox' "$plugin_root/skills/codex-build/SKILL.md"
+rg -Fq 'codex exec "${CODEX_ARGS[@]}" resume "$THREAD_ID" --dangerously-bypass-approvals-and-sandbox' "$plugin_root/skills/codex-build/SKILL.md"
+rg -Fq 'claude --model' "$plugin_root/skills/cowork-review/SKILL.md"
+rg -Fq 'Review the changes made with cowork using Opus' "$repo_root/README.md"
+rg -Fq 'GPT-6 Astra at low reasoning effort' "$repo_root/README.md"
 
 for skill in plan build review continue status setup gemini copilot; do
   [[ -f "$repo_root/skills/cowork-$skill/SKILL.md" ]]

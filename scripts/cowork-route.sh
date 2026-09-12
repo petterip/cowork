@@ -35,13 +35,17 @@ case "$action" in
     focus=()
     gemini_requested=0
     copilot_requested=0
+    codex_requested=0
     explicit_model=''
+    model_family=''
+    explicit_effort=''
     index=0
     while (( index < ${#words[@]} )); do
       case "${words[$index]}" in
         --wait|--background) ((index += 1)) ;;
         --gemini) gemini_requested=1; ((index += 1)) ;;
         --copilot) copilot_requested=1; ((index += 1)) ;;
+        --codex) codex_requested=1; ((index += 1)) ;;
         --model=*)
           explicit_model=${words[$index]#--model=}
           [[ -n "$explicit_model" ]] || fail '--model requires a slug.'
@@ -50,6 +54,25 @@ case "$action" in
         --model)
           (( index + 1 < ${#words[@]} )) || fail '--model requires a slug.'
           explicit_model=${words[$((index + 1))]}
+          ((index += 2))
+          ;;
+        --model-family=*)
+          model_family=${words[$index]#--model-family=}
+          [[ -n "$model_family" ]] || fail '--model-family requires a name.'
+          ((index += 1))
+          ;;
+        --model-family)
+          (( index + 1 < ${#words[@]} )) || fail '--model-family requires a name.'
+          model_family=${words[$((index + 1))]}
+          ((index += 2))
+          ;;
+        --effort=*)
+          explicit_effort=${words[$index]#--effort=}
+          ((index += 1))
+          ;;
+        --effort)
+          (( index + 1 < ${#words[@]} )) || fail '--effort requires a level.'
+          explicit_effort=${words[$((index + 1))]}
           ((index += 2))
           ;;
         --base=*)
@@ -64,18 +87,30 @@ case "$action" in
         *) focus+=("${words[$index]}"); ((index += 1)) ;;
       esac
     done
-    if [[ -n "$explicit_model" ]] && (( !gemini_requested && !copilot_requested )); then
-      fail 'pass --gemini or --copilot with --model; the plugin does not pin a peer from a slug alone.'
+    [[ -z "$explicit_effort" || "$explicit_effort" =~ ^[[:alnum:]][[:alnum:]_.-]*$ ]] ||
+      fail '--effort must be a CLI-safe level name.'
+    if (( codex_requested && (gemini_requested || copilot_requested) )); then
+      fail '--codex cannot be combined with --gemini or --copilot.'
+    fi
+    [[ -z "$explicit_model" || -z "$model_family" ]] ||
+      fail 'pass either --model or --model-family, not both.'
+    if [[ -n "$explicit_model$model_family$explicit_effort" ]] && (( !gemini_requested && !copilot_requested && !codex_requested )); then
+      fail 'pass --codex, --gemini, or --copilot with --model/--effort; model settings do not select a peer.'
     fi
     if (( gemini_requested || copilot_requested )); then
       via=agy
       family=gemini-flash
-      effort=medium
+      effort=${explicit_effort:-medium}
       (( copilot_requested )) && via=copilot
       if (( copilot_requested && !gemini_requested )); then
         family=auto
       fi
-      [[ "$action" == adversarial-review ]] && effort=high
+      if [[ -n "$model_family" ]]; then
+        (( copilot_requested && !gemini_requested )) ||
+          fail '--model-family is supported only for an explicitly selected Copilot or Codex peer.'
+        explicit_model=$("$script_dir/resolve-model.sh" --family named --via copilot --query "$model_family")
+      fi
+      [[ "$action" == adversarial-review && -z "$explicit_effort" ]] && effort=high
       prompt='Review the current code or diff as an independent, read-only reviewer.'
       if [[ "$action" == adversarial-review ]]; then
         prompt='Adversarially challenge the current code or diff as an independent, read-only reviewer: hunt for failure scenarios that break it.'
@@ -132,6 +167,22 @@ case "$action" in
       "$script_dir/invoke-peer-review.sh" "$via" "$model" \
         --family "$family" --effort "$effort" --prompt-file "$prompt_file" || status=$?
       exit "$status"
+    fi
+    if (( codex_requested )); then
+      if [[ -n "$model_family" ]]; then
+        explicit_model=$("$script_dir/resolve-model.sh" --family named --via codex --query "$model_family")
+      fi
+      codex_cmd=(codex)
+      [[ -z "$explicit_model" ]] || codex_cmd+=(-m "$explicit_model")
+      [[ -z "$explicit_effort" ]] || codex_cmd+=(-c "model_reasoning_effort=$explicit_effort")
+      if [[ ${#focus[@]} -gt 0 ]]; then
+        if [[ ${#review_args[@]} -gt 0 ]]; then
+          fail 'focused Codex review with --base is unsupported; drop --base or the focus text.'
+        fi
+        exec "${codex_cmd[@]}" review "${focus[*]}"
+      fi
+      [[ ${#review_args[@]} -gt 0 ]] || review_args=(--uncommitted)
+      exec "${codex_cmd[@]}" review "${review_args[@]}"
     fi
     if [[ -n "$runtime" ]]; then
       exec node "$runtime" "$action" "$arguments"
