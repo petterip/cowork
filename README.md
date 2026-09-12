@@ -88,7 +88,7 @@ Install everywhere (Claude Code, Codex, opencode, and Copilot skills):
 
 ### APM
 
-Use **APM 0.30.0** for the verified source and archive install paths. Check
+Use **APM 0.30.0** for the verified source install path. Check
 `apm --version`; upgrade with the package manager that installed APM.
 The `skills/` collection installs all 15 skills, including shared runtime
 scripts, Rally tools, and planning references. Pin the collection revision:
@@ -129,9 +129,13 @@ If skills are missing, check the **consumer's** targets and restart/reload the
 host. If scripts are missing, reinstall the complete collection with the
 verified APM version; do not copy a single public skill without its siblings.
 
-APM 0.30.0 archives preserve these resources. Both source and installed-runtime
-contracts are checked by `tests/test_apm_package.sh`; this requires network
-access to the pinned public repository and fails if APM is absent.
+Use repository/tag installation for APM. In APM 0.30.0, archives contain the
+scripts but archive installation drops executable permissions; Cowork calls
+sibling scripts directly and cannot run from that restore. Native plugin
+installation remains a separate supported path. Both source and
+installed-runtime contracts are checked by `tests/test_apm_package.sh`; this
+requires network access to the pinned public repository and fails if APM is
+absent.
 
 The official `codex@openai-codex` Claude Code plugin is optional. When present,
 Cowork uses its review, adversarial-review, status, and session-transfer paths.
