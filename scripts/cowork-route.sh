@@ -139,25 +139,35 @@ case "$action" in
           base=${review_args[1]:-}
           [[ -n "$base" ]] || fail 'internal error: --base recorded without a ref.'
           printf '## git diff %s\n\n```diff\n' "$base"
-          git diff "$base"
+          # Never run a repository textconv driver while assembling a bounded
+          # peer prompt. Office documents and other generated artifacts can
+          # expand into megabytes of extracted XML; the binary summary is the
+          # useful review signal, while source files remain fully diffed.
+          git diff --no-textconv "$base" HEAD
           printf '```\n'
         else
           printf '## git diff HEAD (staged and unstaged)\n\n```diff\n'
-          git diff HEAD
+          git diff --no-textconv HEAD
           printf '```\n'
         fi
-        printf '\n## Untracked files\n'
-        untracked=0
-        while IFS= read -r -d '' file; do
-          untracked=1
-          printf '\n### %s\n\n```diff\n' "$file"
-          diff_status=0
-          git diff --no-index --binary -- /dev/null "$file" || diff_status=$?
-          (( diff_status <= 1 )) || fail "could not read untracked file: $file"
-          printf '```\n'
-        done < <(git ls-files --others --exclude-standard -z)
-        if (( !untracked )); then
-          printf '\nNone.\n'
+        # A named base describes a committed range. Unrelated untracked files
+        # are not part of that range and can be arbitrarily large (for example
+        # generated artifacts or dependency trees), so include them only for
+        # an actual working-tree review.
+        if [[ ${#review_args[@]} -eq 0 ]]; then
+          printf '\n## Untracked files\n'
+          untracked=0
+          while IFS= read -r -d '' file; do
+            untracked=1
+            printf '\n### %s\n\n```diff\n' "$file"
+            diff_status=0
+            git diff --no-index --binary -- /dev/null "$file" || diff_status=$?
+            (( diff_status <= 1 )) || fail "could not read untracked file: $file"
+            printf '```\n'
+          done < <(git ls-files --others --exclude-standard -z)
+          if (( !untracked )); then
+            printf '\nNone.\n'
+          fi
         fi
       } >"$prompt_file"
 

@@ -17,6 +17,10 @@ skill's real base directory after following any symlink.
 - Non-interactive reviews use `copilot -p` with `-s` and `--no-ask-user`.
   Allow only `git status`, `git diff`, `git log`, and `git show`. Do not pass
   `--allow-all`, `--yolo`, or `shell(git:*)`.
+- For `--base <ref>`, send only the tracked diff from that base. Include
+  untracked files only when reviewing the working tree without `--base`.
+- Disable Git text conversion when assembling the prompt so generated Office
+  and other binary artifacts are summarized instead of expanded into it.
 - An explicitly named Copilot peer stays the peer even when the model name is
   Opus, Luna, or another family also available elsewhere. Resolve the requested
   name with `cowork-route.sh --copilot --model-family <name>`, which selects the
