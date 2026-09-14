@@ -18,7 +18,7 @@ Bundled scripts:
 - `scripts/invoke-peer-review.sh --help` runs a bounded Gemini or Copilot review.
 - `scripts/require-peer-egress.sh <destination>` blocks peer launch unless the
   payload classification and approved destination are explicit. Confidential
-  or restricted payloads also require confirmed scope reduction.
+  and restricted payloads are not permitted for peer export.
 - `scripts/resolve-model.sh --help` resolves current peer model identifiers.
 
 Invoke scripts through paths relative to this skill directory. Preserve their
@@ -26,6 +26,6 @@ exit status and surface stderr when a command fails.
 
 Before a peer launch, export `COWORK_DATA_CLASSIFICATION` and the comma-separated,
 space-free `COWORK_APPROVED_DESTINATIONS`. Routes use `claude`, `codex`, `agy` for
-`--gemini`, and `copilot` for `--copilot`. Export
-`COWORK_REDACTION_CONFIRMED=true` for confidential or restricted payloads.
-Status is local inspection and does not require the gate.
+`--gemini`, and `copilot` for `--copilot`. Classification is caller-declared;
+do not use Cowork for PHI, PII, or other regulated data. Status is local
+inspection and does not require the gate.

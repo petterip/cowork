@@ -104,13 +104,13 @@ grep -Fq "destination 'copilot'" "$tmp/route.err"
 
 : >"$log"
 if (cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
-  COWORK_DATA_CLASSIFICATION=restricted COWORK_REDACTION_CONFIRMED= \
+  COWORK_DATA_CLASSIFICATION=restricted COWORK_REDACTION_CONFIRMED=true \
   COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review '--gemini') 2>"$tmp/route.err"; then
-  printf '%s\n' 'expected an unredacted restricted peer launch to fail' >&2
+  printf '%s\n' 'expected a restricted peer launch to fail' >&2
   exit 1
 fi
 [[ ! -s "$log" ]]
-grep -Fq 'COWORK_REDACTION_CONFIRMED=true' "$tmp/route.err"
+grep -Fq 'not permitted for peer export' "$tmp/route.err"
 
 : >"$log"
 if PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
@@ -124,9 +124,19 @@ grep -Fq 'COWORK_DATA_CLASSIFICATION' "$tmp/route.err"
 
 : >"$log"
 PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
-  COWORK_DATA_CLASSIFICATION=confidential COWORK_REDACTION_CONFIRMED=true \
+  COWORK_DATA_CLASSIFICATION=internal \
   COWORK_APPROVED_DESTINATIONS=agy "$peer_review" agy auto 'review'
 grep -Fq 'agy:' "$log"
+
+: >"$log"
+if PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_DATA_CLASSIFICATION=secret COWORK_APPROVED_DESTINATIONS=agy \
+  "$peer_review" agy auto 'review' 2>"$tmp/route.err"; then
+  printf '%s\n' 'expected an unknown classification to fail' >&2
+  exit 1
+fi
+[[ ! -s "$log" ]]
+grep -Fq 'set COWORK_DATA_CLASSIFICATION' "$tmp/route.err"
 
 : >"$log"
 if (cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \

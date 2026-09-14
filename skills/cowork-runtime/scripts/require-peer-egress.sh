@@ -17,7 +17,8 @@ classification=${COWORK_DATA_CLASSIFICATION-}
 approved=${COWORK_APPROVED_DESTINATIONS-}
 
 case "$classification" in
-  public|internal|confidential|restricted) ;;
+  public|internal) ;;
+  confidential|restricted) fail "classification '$classification' is not permitted for peer export." ;;
   *) fail 'set COWORK_DATA_CLASSIFICATION to public, internal, confidential, or restricted.' ;;
 esac
 
@@ -25,8 +26,3 @@ case ",$approved," in
   *,"$destination",*) ;;
   *) fail "destination '$destination' is not listed in COWORK_APPROVED_DESTINATIONS." ;;
 esac
-
-if [[ "$classification" == confidential || "$classification" == restricted ]]; then
-  [[ "${COWORK_REDACTION_CONFIRMED-}" == true ]] ||
-    fail 'set COWORK_REDACTION_CONFIRMED=true after reducing the payload to the approved minimum.'
-fi

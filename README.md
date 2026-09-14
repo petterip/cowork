@@ -116,16 +116,17 @@ use the selected adapter. Avoid installing the same skills through both APM
 and the native plugin in one host, which can create duplicate entrypoints.
 
 Before a first job, authenticate the selected CLIs and run `cowork-setup`.
-Before launching a peer, export `COWORK_DATA_CLASSIFICATION` as `public`,
-`internal`, `confidential`, or `restricted`, and list the approved peer CLIs in
+Before launching a peer, export `COWORK_DATA_CLASSIFICATION` as `public` or
+`internal`, and list the approved peer CLIs in
 the exported, comma-separated `COWORK_APPROVED_DESTINATIONS` (for example,
 `claude,codex,agy`, with no spaces). Default review and transfer use `codex`;
 `--gemini` uses `agy`; `--copilot` uses `copilot`; Claude handoff and Rally use
-`claude`. Confidential and
-restricted payloads also require `COWORK_REDACTION_CONFIRMED=true` after the
-payload has been reduced to the approved minimum. Missing or mismatched values
-block runtime-routed launches. Skill-directed Claude and Codex launches run the
-same gate before preparing their peer prompt. Local status inspection is exempt.
+`claude`. Confidential and restricted payloads are denied even when a
+destination is approved. Classification is caller-declared; Cowork produces no
+immutable audit record and is not an approved export path for PHI, PII, or
+other regulated data. Missing or mismatched values block runtime-routed
+launches. Skill-directed Claude and Codex launches run the same gate before
+preparing their peer prompt. Local status inspection is exempt.
 For an installation-only check that does not launch a model:
 
 ```bash
