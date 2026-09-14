@@ -48,6 +48,7 @@ if [[ "${1-} ${2-}" == "help config" ]]; then
     '    - "gemini-3.5-flash"' \
     '    - "gemini-4.1-flash"' \
     '    - "claude-opus-4.6"' \
+    '    - "claude-opus-5"' \
     '    - "gpt-6-luna"' \
     '    - "future-nebula-17"' \
     '' \
@@ -76,6 +77,11 @@ git -C "$peer_repo" add file.txt
 git -C "$peer_repo" commit -qm base
 printf '%s\n' changed >"$peer_repo/file.txt"
 printf '%s\n' 'untracked-review-sentinel' >"$peer_repo/new.txt"
+printf '%s\n' '*.deck diff=explode' >"$peer_repo/.gitattributes"
+printf '%s\n' 'binary-deck' >"$peer_repo/slides.deck"
+git -C "$peer_repo" add .gitattributes slides.deck
+git -C "$peer_repo" commit -qm deck
+git -C "$peer_repo" config diff.explode.textconv "printf 'expanded-textconv-sentinel'"
 
 PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
   COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review '--wait'
@@ -130,8 +136,23 @@ grep -Fq -- '--effort=medium' "$log"
   COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review \
   '--copilot --model-family=opus --effort=high')
 grep -Fq 'copilot:-p' "$log"
-grep -Fq -- '--model=claude-opus-4.6' "$log"
+grep -Fq -- '--model=claude-opus-5' "$log"
 grep -Fq -- '--effort=high' "$log"
+
+: >"$log"
+(cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review \
+  '--copilot --model-family=opus-5 --effort=high --base HEAD^')
+grep -Fq -- '--model=claude-opus-5' "$log"
+grep -Fq -- '--effort=high' "$log"
+if grep -Fq 'untracked-review-sentinel' "$log"; then
+  printf '%s\n' 'committed-range review unexpectedly included untracked files' >&2
+  exit 1
+fi
+if grep -Fq 'expanded-textconv-sentinel' "$log"; then
+  printf '%s\n' 'committed-range review unexpectedly expanded a textconv artifact' >&2
+  exit 1
+fi
 
 : >"$log"
 (cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \

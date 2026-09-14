@@ -28,6 +28,17 @@ the read-only job itself unless the user supplied an exact proof command. The
 initiating model decides which focused proof to run while independently
 verifying the findings.
 
+For a committed-range review requested with `--base <ref>`, review the tracked
+diff from that base through `HEAD`. Do not mix in index or working-tree changes,
+and do not enumerate or attach unrelated untracked
+files: they are outside the requested range and may contain large generated
+artifacts or dependency trees. Use an uncommitted-work review when the user
+actually wants staged, unstaged, and untracked changes included.
+
+Build peer prompts with `git diff --no-textconv`. Binary and generated Office
+artifacts should appear as binary-change summaries, not as expanded converter
+output; review their editable sources and verify the rendered artifact locally.
+
 When the user explicitly asks for Gemini or Anti-Gravity, run the read-only
 review via the Anti-Gravity CLI (`agy`) per `../cowork-gemini/SKILL.md`
 instead of creating a rally job. When the user explicitly asks for GitHub
