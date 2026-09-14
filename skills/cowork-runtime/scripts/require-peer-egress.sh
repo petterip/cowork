@@ -6,6 +6,11 @@ fail() {
   exit 1
 }
 
+if [[ "${1-}" == --help ]]; then
+  printf '%s\n' 'usage: require-peer-egress.sh <claude|codex|agy|copilot>'
+  exit 0
+fi
+
 [[ $# -eq 1 && -n "$1" ]] || fail 'pass the peer destination.'
 destination=$1
 classification=${COWORK_DATA_CLASSIFICATION-}
