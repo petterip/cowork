@@ -72,6 +72,10 @@ case "$action" in
     if [[ -n "$explicit_model" ]] && (( !gemini_requested && !copilot_requested )); then
       fail 'pass --gemini or --copilot with --model; the plugin does not pin a peer from a slug alone.'
     fi
+    destination=codex
+    (( gemini_requested )) && destination=agy
+    (( copilot_requested )) && destination=copilot
+    "$script_dir/require-peer-egress.sh" "$destination"
     if (( gemini_requested || copilot_requested )); then
       via=agy
       family=gemini-flash
@@ -153,6 +157,7 @@ case "$action" in
     ;;
   transfer|status)
     [[ -n "$runtime" ]] || exit 2
+    [[ "$action" == status ]] || "$script_dir/require-peer-egress.sh" codex
     exec node "$runtime" "$action" "$arguments"
     ;;
   *) fail "unsupported action: $action" ;;

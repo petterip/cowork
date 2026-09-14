@@ -96,8 +96,11 @@ Run the gate, then pass Claude the immutable request and the absolute artifact
 directory. Launch from the recorded `repository_path` so the worker sees that
 working tree. Claude must write only to a temporary response file and rename it
 to `responses/001.md` when complete.
+Resolve `COWORK_RUNTIME_DIR` to `../cowork-runtime/scripts` relative to this
+skill's real directory after following symlinks.
 
 ```bash
+"$COWORK_RUNTIME_DIR/require-peer-egress.sh" claude
 scripts/assert-subscription-auth.sh
 ACCESS_ARGS=()
 if [[ "$(scripts/detect-full-access.sh)" == full ]]; then ACCESS_ARGS=(--dangerously-skip-permissions); fi
@@ -156,6 +159,7 @@ stick with `--` in place. Deliver the same request from the same directory, with
 stdin closed and a streaming output format:
 
 ```bash
+"$COWORK_RUNTIME_DIR/require-peer-egress.sh" claude
 ( cd "$TARGET_REPO" && claude -p "${ACCESS_ARGS[@]}" --model "$CLAUDE_MODEL" \
     --add-dir "$RALLY_DIR" --add-dir "$TARGET_REPO" \
     --output-format stream-json --verbose -- "$RALLY_PROMPT" \

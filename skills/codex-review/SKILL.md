@@ -10,6 +10,10 @@ Two models, one plan, a bounded argument. **Claude is the builder and orchestrat
 
 This is a **deliberate, high-stakes tool** — reach for it on auth, data models, concurrency, migrations, payments, anything expensive to get wrong. Skip it for obvious/cheap work.
 
+Before writing a peer prompt, resolve `COWORK_RUNTIME_DIR` to
+`../cowork-runtime/scripts` relative to this skill's real directory and run
+`"$COWORK_RUNTIME_DIR/require-peer-egress.sh" codex`.
+
 ## Prerequisites (verify once, fast)
 
 - Codex CLI installed and recent: `codex --version` (need ≥ 0.130; the default `gpt-5.5` model errors on older CLIs).

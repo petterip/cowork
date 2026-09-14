@@ -62,6 +62,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ "$via" == agy || "$via" == copilot ]] || fail 'via must be agy or copilot.'
+"$script_dir/require-peer-egress.sh" "$via"
 [[ "$effort" == low || "$effort" == medium || "$effort" == high ]] || fail 'effort must be low, medium, or high.'
 if [[ -z "$family" ]]; then
   if [[ "$via" == agy ]]; then family=gemini-flash; else family=auto; fi

@@ -13,6 +13,10 @@ Two acts, two different jobs:
 
 You enter at two points only: resolving decisions and signing off the converged plan. Codex is read-only the whole time and never touches a file.
 
+Before writing a peer prompt, resolve `COWORK_RUNTIME_DIR` to
+`../cowork-runtime/scripts` relative to this skill's real directory and run
+`"$COWORK_RUNTIME_DIR/require-peer-egress.sh" codex`.
+
 ---
 
 ## ACT 1 — COLLABORATIVE PLANNING (you ↔ Claude)

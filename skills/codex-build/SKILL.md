@@ -12,6 +12,10 @@ Adapted from Peter Steinberger's `codex-first` pattern (agent-scripts), rebuilt 
 
 **Spec quality decides success.** Codex starts with zero session context — everything it needs must be in the prompt. A plan that survived `/cowork:plan` already is a frozen spec; that's the ideal input.
 
+Before writing a peer prompt, resolve `COWORK_RUNTIME_DIR` to
+`../cowork-runtime/scripts` relative to this skill's real directory and run
+`"$COWORK_RUNTIME_DIR/require-peer-egress.sh" codex`.
+
 ## Prerequisites (verify once, fast)
 
 - `codex --version` ≥ 0.130 (older CLIs error on the default `gpt-5.5` model).

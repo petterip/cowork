@@ -8,6 +8,7 @@ trap 'rm -rf "$tmp"' EXIT
 fake_bin="$tmp/bin"
 official="$tmp/official"
 log="$tmp/calls.log"
+peer_review="$repo_root/skills/cowork-runtime/scripts/invoke-peer-review.sh"
 mkdir -p "$fake_bin" "$official/scripts"
 touch "$official/scripts/codex-companion.mjs"
 
@@ -49,6 +50,11 @@ fi
 printf 'copilot:%s\n' "$*" >>"$COWORK_TEST_LOG"
 EOF
 chmod +x "$fake_bin/node" "$fake_bin/codex" "$fake_bin/agy" "$fake_bin/copilot"
+[[ -x "$repo_root/skills/cowork-runtime/scripts/require-peer-egress.sh" ]] ||
+  { printf '%s\n' 'peer egress gate is not executable' >&2; exit 1; }
+
+export COWORK_DATA_CLASSIFICATION=internal
+export COWORK_APPROVED_DESTINATIONS=codex,agy,copilot
 
 peer_repo="$tmp/repo"
 git init -q "$peer_repo"
@@ -59,6 +65,89 @@ git -C "$peer_repo" add file.txt
 git -C "$peer_repo" commit -qm base
 printf '%s\n' changed >"$peer_repo/file.txt"
 printf '%s\n' 'untracked-review-sentinel' >"$peer_repo/new.txt"
+
+: >"$log"
+if (cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_DATA_CLASSIFICATION= COWORK_APPROVED_DESTINATIONS= \
+  COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review '--copilot') 2>"$tmp/route.err"; then
+  printf '%s\n' 'expected an unclassified peer launch to fail' >&2
+  exit 1
+fi
+[[ ! -s "$log" ]]
+grep -Fq 'COWORK_DATA_CLASSIFICATION' "$tmp/route.err"
+
+: >"$log"
+if PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_DATA_CLASSIFICATION= COWORK_APPROVED_DESTINATIONS= \
+  COWORK_CODEX_PLUGIN_ROOT="$official" "$router" transfer 'handoff' 2>"$tmp/route.err"; then
+  printf '%s\n' 'expected an unclassified transfer to fail' >&2
+  exit 1
+fi
+[[ ! -s "$log" ]]
+grep -Fq 'COWORK_DATA_CLASSIFICATION' "$tmp/route.err"
+
+: >"$log"
+PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_DATA_CLASSIFICATION= COWORK_APPROVED_DESTINATIONS= \
+  COWORK_CODEX_PLUGIN_ROOT="$official" "$router" status
+grep -Fq 'node:' "$log"
+
+: >"$log"
+if (cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_APPROVED_DESTINATIONS=agy COWORK_CODEX_PLUGIN_ROOT="$official" \
+  "$router" review '--copilot') 2>"$tmp/route.err"; then
+  printf '%s\n' 'expected a destination-mismatched peer launch to fail' >&2
+  exit 1
+fi
+[[ ! -s "$log" ]]
+grep -Fq "destination 'copilot'" "$tmp/route.err"
+
+: >"$log"
+if (cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_DATA_CLASSIFICATION=restricted COWORK_REDACTION_CONFIRMED= \
+  COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review '--gemini') 2>"$tmp/route.err"; then
+  printf '%s\n' 'expected an unredacted restricted peer launch to fail' >&2
+  exit 1
+fi
+[[ ! -s "$log" ]]
+grep -Fq 'COWORK_REDACTION_CONFIRMED=true' "$tmp/route.err"
+
+: >"$log"
+if PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_DATA_CLASSIFICATION= COWORK_APPROVED_DESTINATIONS= \
+  "$peer_review" agy auto 'review' 2>"$tmp/route.err"; then
+  printf '%s\n' 'expected direct peer invocation without classification to fail' >&2
+  exit 1
+fi
+[[ ! -s "$log" ]]
+grep -Fq 'COWORK_DATA_CLASSIFICATION' "$tmp/route.err"
+
+: >"$log"
+PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_DATA_CLASSIFICATION=confidential COWORK_REDACTION_CONFIRMED=true \
+  COWORK_APPROVED_DESTINATIONS=agy "$peer_review" agy auto 'review'
+grep -Fq 'agy:' "$log"
+
+: >"$log"
+if (cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_DATA_CLASSIFICATION= COWORK_APPROVED_DESTINATIONS= \
+  COWORK_CODEX_PLUGIN_ROOT="$official" "$router" adversarial-review '--gemini') \
+  2>"$tmp/route.err"; then
+  printf '%s\n' 'expected unclassified adversarial review to fail' >&2
+  exit 1
+fi
+[[ ! -s "$log" ]]
+grep -Fq 'COWORK_DATA_CLASSIFICATION' "$tmp/route.err"
+
+: >"$log"
+if PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_DATA_CLASSIFICATION= COWORK_APPROVED_DESTINATIONS= \
+  COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review '--wait' 2>"$tmp/route.err"; then
+  printf '%s\n' 'expected an unclassified default peer launch to fail' >&2
+  exit 1
+fi
+[[ ! -s "$log" ]]
+grep -Fq 'COWORK_DATA_CLASSIFICATION' "$tmp/route.err"
 
 PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
   COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review '--wait'

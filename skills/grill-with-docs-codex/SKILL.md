@@ -13,6 +13,10 @@ Two acts. Act 1 aligns intent *and* keeps your living docs honest; Act 2 has a d
 
 You enter at two points: resolving decisions and signing off the converged plan.
 
+Before writing a peer prompt, resolve `COWORK_RUNTIME_DIR` to
+`../cowork-runtime/scripts` relative to this skill's real directory and run
+`"$COWORK_RUNTIME_DIR/require-peer-egress.sh" codex`.
+
 ---
 
 ## ACT 1 — DOCUMENTATION-AWARE PLANNING (you ↔ Claude)
