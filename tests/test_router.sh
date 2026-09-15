@@ -178,9 +178,36 @@ fi
 grep -Fq 'drop --base' "$tmp/route.err"
 
 : >"$log"
-PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
-  COWORK_CODEX_PLUGIN_ROOT="$tmp/missing" "$router" review '--base main'
-grep -Fq 'codex:review --base main' "$log"
+output_path="$tmp/review.txt"
+if (cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review \
+  "--copilot --base=--output=$output_path") 2>"$tmp/route.err"; then
+  printf '%s\n' 'expected option-like --base to fail' >&2
+  exit 1
+fi
+grep -Fq -- '--base must name a single commit' "$tmp/route.err"
+[[ ! -e "$output_path" && ! -s "$log" ]]
+
+: >"$log"
+if (cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review \
+  '--copilot --base missing-ref') 2>"$tmp/route.err"; then
+  printf '%s\n' 'expected non-commit --base to fail' >&2
+  exit 1
+fi
+grep -Fq -- '--base must name a single commit' "$tmp/route.err"
+[[ ! -s "$log" ]]
+
+: >"$log"
+(cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_CODEX_PLUGIN_ROOT="$tmp/missing" "$router" review '--base HEAD')
+grep -Fq 'codex:review --base HEAD' "$log"
+
+: >"$log"
+(cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review '--gemini --base HEAD')
+grep -Fq '## git diff HEAD' "$log"
+grep -Fq -- '+changed' "$log"
 
 : >"$log"
 PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \

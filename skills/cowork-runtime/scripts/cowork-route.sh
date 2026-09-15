@@ -75,6 +75,12 @@ case "$action" in
     if [[ -n "$explicit_model" ]] && (( !gemini_requested && !copilot_requested )); then
       fail 'pass --gemini or --copilot with --model; the plugin does not pin a peer from a slug alone.'
     fi
+    if [[ ${#review_args[@]} -gt 0 ]]; then
+      git rev-parse --git-dir >/dev/null 2>&1 || fail 'run peer review from inside a git repository.'
+      base=${review_args[1]:-}
+      [[ -n "$base" && "$base" != -* ]] || fail '--base must name a single commit.'
+      git rev-parse --verify --quiet "${base}^{commit}" >/dev/null || fail '--base must name a single commit.'
+    fi
     destination=codex
     (( gemini_requested )) && destination=agy
     (( copilot_requested )) && destination=copilot
@@ -113,10 +119,9 @@ case "$action" in
         printf '%s\n\n' "$prompt"
         printf 'Everything you need is below. Answer from this text alone: do not run commands, read files, or wait on background work.\n\n'
         if [[ ${#review_args[@]} -gt 0 ]]; then
-          base=${review_args[1]:-}
-          [[ -n "$base" ]] || fail 'internal error: --base recorded without a ref.'
+          [[ -n "${base-}" ]] || fail 'internal error: --base was not validated.'
           printf '## git diff %s\n\n```diff\n' "$base"
-          git diff "$base"
+          git diff "$base" --
           printf '```\n'
         else
           printf '## git diff HEAD (staged and unstaged)\n\n```diff\n'
