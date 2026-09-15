@@ -92,6 +92,9 @@ case "$action" in
     if (( codex_requested && (gemini_requested || copilot_requested) )); then
       fail '--codex cannot be combined with --gemini or --copilot.'
     fi
+    if (( gemini_requested && copilot_requested )); then
+      fail '--gemini cannot be combined with --copilot.'
+    fi
     [[ -z "$explicit_model" || -z "$model_family" ]] ||
       fail 'pass either --model or --model-family, not both.'
     if [[ -n "$explicit_model$model_family$explicit_effort" ]] && (( !gemini_requested && !copilot_requested && !codex_requested )); then
