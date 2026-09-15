@@ -69,6 +69,9 @@ case "$action" in
         *) focus+=("${words[$index]}"); ((index += 1)) ;;
       esac
     done
+    if (( gemini_requested && copilot_requested )); then
+      fail '--gemini cannot be combined with --copilot.'
+    fi
     if [[ -n "$explicit_model" ]] && (( !gemini_requested && !copilot_requested )); then
       fail 'pass --gemini or --copilot with --model; the plugin does not pin a peer from a slug alone.'
     fi

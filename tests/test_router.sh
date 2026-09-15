@@ -207,10 +207,14 @@ grep -Fq 'copilot:-p' "$log"
 grep -Fq -- '--model=auto' "$log"
 
 : >"$log"
-(cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
-  COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review '--gemini --copilot')
-grep -Fq 'copilot:-p' "$log"
-grep -Fq -- '--model=gemini-4.1-flash' "$log"
+if (cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review \
+  '--gemini --copilot') 2>"$tmp/route.err"; then
+  printf '%s\n' 'expected conflicting peer flags to fail' >&2
+  exit 1
+fi
+grep -Fq -- '--gemini cannot be combined with --copilot' "$tmp/route.err"
+[[ ! -s "$log" ]]
 
 : >"$log"
 (cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
