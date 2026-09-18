@@ -5,6 +5,8 @@ description: "Two-act, documentation-aware collaborative planning: Claude resolv
 
 # Collaborative Plan with Docs — Align the Domain, Then Challenge the Plan
 
+Follow [the shared delegation contract](../codex-claude-rally/references/delegation.md) from this skill’s resolved directory (follow symlinks). Named agents are defaults; explicit choices use the selected provider’s workflow.
+
 Two acts. Act 1 aligns intent *and* keeps your living docs honest; Act 2 has a different model attack the result.
 
 - **Act 1** is adapted from Matt Pocock's `grill-with-docs`, used under MIT (see `THIRD-PARTY-NOTICES.md`). It resolves decisions against `CONTEXT.md`/ADRs and updates them inline.
@@ -151,8 +153,8 @@ Hand the locked plan to Codex for adversarial review. Mechanics verified end-to-
 ### Prerequisites
 - `codex --version` ≥ 0.130 (older CLIs error on the default `gpt-5.5` model).
 - Codex authenticated (`codex login`; ChatGPT account fine). On auth/model error, surface it — don't silently retry.
-- Do NOT pin `-m` (config default is used; `gpt-5.x-codex` variants 400 on ChatGPT-account auth).
-- **Echo the active model before Round 1** so the user can confirm: read the `model` line from `~/.codex/config.toml` (absent = "CLI default"); state it with the resolved tunables. If the user objects, stop before burning a round.
+- Pin `-m` only for an explicit model request (otherwise use the config default; `gpt-5.x-codex` variants 400 on ChatGPT-account auth).
+- **Echo the selected model before Round 1**: use the requested reviewer model, otherwise the configured default (or "CLI default" if unset). If the user objects, stop before launch.
 
 ### Tunables (args, else default)
 | Var | Default | Meaning |
@@ -163,23 +165,37 @@ Hand the locked plan to Codex for adversarial review. Mechanics verified end-to-
 
 Invoked with e.g. `rounds=3` → use it. Echo resolved values first.
 
+Resolve `RALLY_SCRIPTS` to `../codex-claude-rally/scripts` from this skill’s
+real directory. Set `CODEX_MODEL` to the requested reviewer slug, or unset it
+for the configured default.
+
+Preserve artifact paths and thread IDs across shell calls until verification
+and logging finish. Each phase approval covers only its stated criteria;
+whole-plan approval requires all criteria and cross-phase contracts checked.
+
 ### Review prompt (each round)
-> You are an adversarial reviewer for an implementation plan. Be skeptical and specific — your job is to find what breaks, not to be agreeable. Read the plan at `PLAN.md` (and `CONTEXT.md`/ADRs for the domain language) and any repo files you need (you are read-only). Identify concrete flaws: security holes, race conditions, missing edge cases, schema conflicts, domain-language mismatches, wrong assumptions, observability gaps, simpler alternatives, and a Verification section whose proof would not catch a failed implementation. For each, give a one-line fix. Do NOT modify any files. End with EXACTLY one line: `VERDICT: APPROVED` or `VERDICT: REVISE`.
+Use the phase-scoped prompt below, tailored to the agreed acceptance criteria.
 
 ### Round 1 — fresh session (capture `thread_id`)
 ```bash
 WORK_DIR=$(mktemp -d "${TMPDIR:-/tmp}/codex-review.XXXXXX")
 chmod 700 "$WORK_DIR"
-trap 'rm -rf "$WORK_DIR"' EXIT
 PROMPT_FILE="$WORK_DIR/review-prompt.md"
 VERDICT_FILE="$WORK_DIR/verdict.md"
 EVENTS_FILE="$WORK_DIR/events.jsonl"
 STDERR_FILE="$WORK_DIR/stderr.log"
-if rg -q '^approval_policy\s*=\s*"never"' ~/.codex/config.toml && rg -q '^sandbox_mode\s*=\s*"danger-full-access"' ~/.codex/config.toml; then CODEX_EXEC_ACCESS=--dangerously-bypass-approvals-and-sandbox; CODEX_RESUME_ACCESS=--dangerously-bypass-approvals-and-sandbox; else CODEX_EXEC_ACCESS='-s read-only'; CODEX_RESUME_ACCESS='-c sandbox_mode="read-only"'; fi
+MODEL_ARGS=()
+if [[ -n "${CODEX_MODEL:-}" ]]; then MODEL_ARGS=(--model "$CODEX_MODEL"); fi
+CODEX_EXEC_ACCESS=(-s read-only)
+CODEX_RESUME_ACCESS=(-c 'sandbox_mode="read-only"')
+if [[ "$("$RALLY_SCRIPTS/detect-full-access.sh")" == full ]]; then
+  CODEX_EXEC_ACCESS=(--dangerously-bypass-approvals-and-sandbox)
+  CODEX_RESUME_ACCESS=(--dangerously-bypass-approvals-and-sandbox)
+fi
 cat >"$PROMPT_FILE" <<'EOF'
-You are an adversarial reviewer for an implementation plan. Be skeptical and specific — your job is to find what breaks, not to be agreeable. Read the plan at PLAN.md (and CONTEXT.md/ADRs for the domain language) and any repository files you need. Do not modify files. Identify concrete flaws: security holes, race conditions, missing edge cases, schema conflicts, domain-language mismatches, wrong assumptions, observability gaps, simpler alternatives, and a Verification section whose proof would not catch a failed implementation. For each, give a one-line fix. End with exactly one line: VERDICT: APPROVED or VERDICT: REVISE.
+Review <current phase and relevant PLAN.md sections> against <acceptance criteria>, using repository sources as evidence. Work read-only. Include relevant CONTEXT.md/ADR decisions. Report material flaws with a concrete failure scenario and concise fix; assess whether the proof catches failed implementation. Flag missing evidence. End with exactly VERDICT: APPROVED if sound enough to implement, otherwise VERDICT: REVISE.
 EOF
-if ! timeout 600 codex exec $CODEX_EXEC_ACCESS --json -o "$VERDICT_FILE" "$(<"$PROMPT_FILE")" \
+if ! timeout 600 codex exec "${CODEX_EXEC_ACCESS[@]}" "${MODEL_ARGS[@]}" --json -o "$VERDICT_FILE" "$(<"$PROMPT_FILE")" \
   < /dev/null >"$EVENTS_FILE" 2>"$STDERR_FILE"; then
   printf 'Codex review failed; inspect %s and %s.\n' "$EVENTS_FILE" "$STDERR_FILE" >&2
   exit 1
@@ -194,9 +210,12 @@ Parse `thread_id` from `$EVENTS_FILE`. Critique is in `$VERDICT_FILE`; no verdic
 # resume REJECTS -s. Force read-only via -c sandbox_mode, or Codex inherits
 # config.toml (possibly danger-full-access) and could WRITE files. Critical
 # safety line — verified 2026-06-04.
-if ! timeout 600 codex exec resume "$THREAD_ID" $CODEX_RESUME_ACCESS --json \
+VERDICT_FILE=$(mktemp "$WORK_DIR/verdict.XXXXXX")
+EVENTS_FILE="$VERDICT_FILE.events.jsonl"
+STDERR_FILE="$VERDICT_FILE.stderr.log"
+if ! timeout 600 codex exec resume "$THREAD_ID" "${CODEX_RESUME_ACCESS[@]}" "${MODEL_ARGS[@]}" --json \
   -o "$VERDICT_FILE" \
-  "I revised the plan. Re-review PLAN.md — check prior findings + flag anything new. End with VERDICT: APPROVED or VERDICT: REVISE." \
+  "I revised the plan. Re-review the same phase of PLAN.md against its acceptance criteria; check prior findings and new material flaws. End with VERDICT: APPROVED or VERDICT: REVISE." \
   < /dev/null >"$EVENTS_FILE" 2>"$STDERR_FILE"; then
   printf 'Codex review resume failed; inspect %s and %s.\n' "$EVENTS_FILE" "$STDERR_FILE" >&2
   exit 1

@@ -5,11 +5,13 @@ description: "Cross-model implementation from a frozen spec: Codex builds in an 
 
 # Codex-Build — Codex Types, Claude Verifies
 
+Follow [the shared delegation contract](../codex-claude-rally/references/delegation.md) from this skill’s resolved directory (follow symlinks). Named agents are defaults; explicit choices use the selected provider’s workflow.
+
 The role-flip of `/cowork:plan` plan review: there, Claude builds the plan and Codex critiques read-only. Here, **Codex is the builder with write access; Claude is the spec-writer and reviewer.** Codex implements a frozen spec end-to-end; Claude judges the diff like a contributor PR, demands proof, and iterates fixes in the same Codex session. The human enters at exactly two points: kickoff and diff sign-off.
 
 Adapted from Peter Steinberger's `codex-first` pattern (agent-scripts), rebuilt on this house's verified Codex mechanics.
 
-**Spec quality decides success.** Codex starts with zero session context — everything it needs must be in the prompt. A plan that survived `/cowork:plan` already is a frozen spec; that's the ideal input.
+**Spec quality decides success.** Derive each phase’s outcome and acceptance criteria from the frozen plan. Fresh phase sessions share the isolated worker worktree; verify each phase and the combined diff and proof before hand-back. Same-session resumes fix the current phase.
 
 ## Prerequisites (verify once, fast)
 
@@ -41,31 +43,15 @@ Adapted from Peter Steinberger's `codex-first` pattern (agent-scripts), rebuilt 
 | `SPEC_FILE` | `PLAN.md` | The frozen spec Codex implements. |
 | `MAX_FIX_ROUNDS` | `2` | Fix iterations via resume before Claude takes over and finishes directly. |
 | `LOG_FILE` | `PLAN-REVIEW-LOG.md` | Append-only build transcript. If it exists (Act 1/2 ran), append `## Act 3 — Build`; else create it. |
-| `PROOF_CMD` | spec `## Verification` | Exact test/verify command Codex must run as proof. Read it from the spec's Verification section. If that section is missing or empty, ask the user ONE question to get it before launching. |
+| `PROOF_CMD` | phase verification | Exact proof command and expected result for this phase, derived from the spec. Keep the full spec’s verification for final integration. Resolve missing proof before launch. |
 
 Echo resolved values before starting.
 
-`CODEX_ARGS` always starts empty. A requested model and a requested effort are
-each resolved independently — one without the other is normal — and appended
-only when the user actually asked for it:
-
-```bash
-CODEX_ARGS=()
-if [[ -n "${CODEX_MODEL:-}" ]]; then
-  CODEX_ARGS+=(-m "$CODEX_MODEL")
-fi
-if [[ -n "${CODEX_EFFORT:-}" ]]; then
-  CODEX_ARGS+=(-c "model_reasoning_effort=$CODEX_EFFORT")
-fi
-```
-
-`CODEX_MODEL` and `CODEX_EFFORT` themselves come from the user's exact
-request, not a default. Resolve a non-slug model name from the live Codex
-catalog at invocation time; this applies equally to models published after
-this skill. Pass a requested effort verbatim after validating it as a safe
-level token. Leave `CODEX_ARGS` empty when neither setting was requested.
-Preserve the same array for fix-round resumes so the named model and effort
-never drift.
+For a multi-phase build, run Step 0 once. Repeat Steps 1–4 sequentially for each
+phase in that worktree, resolving its selected provider/model and capturing a
+fresh thread ID and report in the log. Use that provider’s supported launcher;
+these CLI examples are Codex-only. Same-phase fixes resume that phase’s thread.
+Proceed to Step 5 after all phases and combined verification pass.
 
 ## Step 0 — Gates (before any Codex launch)
 
@@ -79,36 +65,63 @@ never drift.
    worker, so pre-existing local work is ignored by construction.
 4. Confirm scope in one line, then go. No round-by-round approvals; the human gate is at the end.
 
-## Step 1 — The build prompt (contract, via temp file)
-
-Never inline-quote the prompt — write it to a temp file. Fill this contract completely; when chained from a planning/review skill, derive it from the plan's sections:
+Resolve `RALLY_SCRIPTS` to `../codex-claude-rally/scripts` from this skill’s
+real directory. Initialize once; the existing access detector honors explicit
+`COWORK_FULL_ACCESS_AUTHORIZED=1` or configured full access:
 
 ```bash
-P=$(mktemp)
+BUILD_ROOT="${XDG_STATE_HOME:-$HOME/.local/state}/cowork/builds"
+mkdir -p "$BUILD_ROOT"
+BUILD_DIR=$(mktemp -d "$BUILD_ROOT/run.XXXXXX")
+chmod 700 "$BUILD_DIR"
+BUILD_ACCESS=()
+if [[ "$("$RALLY_SCRIPTS/detect-full-access.sh")" == full ]]; then
+  BUILD_ACCESS=(--dangerously-bypass-approvals-and-sandbox)
+fi
+```
+
+Keep the artifact paths and session IDs across shell calls; retain this directory
+for verification and recovery. Record its path in `LOG_FILE`.
+
+## Step 1 — The build prompt (contract, via temp file)
+
+Write this contract from the frozen phase into the prompt file. Embed its
+acceptance criteria and needed decisions when the plan is untracked or absent
+from the worker; do not copy dirty source code. Confirm referenced inputs are
+readable from the isolated worker before launch. Set `CODEX_MODEL` and `CODEX_EFFORT` only from this phase's explicit request,
+resolving each independently. Resolve family names through the live catalog,
+including models published after this skill. Unset unspecified values to keep
+configured defaults; preserve the array for same-phase fixes:
+
+```bash
+CODEX_ARGS=()
+if [[ -n "${CODEX_MODEL:-}" ]]; then
+  CODEX_ARGS+=(-m "$CODEX_MODEL")
+fi
+if [[ -n "${CODEX_EFFORT:-}" ]]; then
+  [[ "$CODEX_EFFORT" =~ ^[[:alnum:]][[:alnum:]_.-]*$ ]] || { printf 'Invalid effort token.\n' >&2; exit 1; }
+  CODEX_ARGS+=(-c "model_reasoning_effort=$CODEX_EFFORT")
+fi
+PHASE_DIR=$(mktemp -d "$BUILD_DIR/phase.XXXXXX")
+P="$PHASE_DIR/prompt.md"
 cat >"$P" <<'EOF'
-GOAL: <one paragraph — what done looks like>
-SPEC: Read <SPEC_FILE> at the repo root. It is a frozen, already-reviewed spec.
-  Implement it exactly. If a step is impossible as written, implement the
-  closest faithful version and report the deviation — do not redesign.
-KEY PATHS: <files/dirs Codex will touch or must read first>
-CONSTRAINTS: <"don't touch X", style rules, deps that must not change>
-NON-GOALS: <explicitly out of scope — from the plan's Out of scope section>
-PROOF: Run `<PROOF_CMD>` and include its full output in your report.
-OUTPUT: End with a report — files changed (one line each: path + what/why),
-  proof output, and any deviations from the spec with reasons.
+GOAL: <current phase’s outcome and observable acceptance criteria>
+SPEC: <frozen phase text, or exact sections of a worker-readable spec>; implement this phase.
+  Report blocked requirements or necessary deviations with reasons.
+KEY PATHS: <allowed edit paths and relevant readable sources>
+CONSTRAINTS: <essential compatibility, safety, and authorization boundaries>
+PROOF: Run `<PROOF_CMD>`; expected result: <what demonstrates acceptance>.
+OUTPUT: Report changed paths and why, full proof output, and deviations.
 EOF
 ```
 
 ## Step 2 — Launch Codex (fresh session, capture `thread_id`)
 
 ```bash
-BUILD_DIR=$(mktemp -d "${TMPDIR:-/tmp}/codex-build.XXXXXX")
-chmod 700 "$BUILD_DIR"
-trap 'rm -rf "$BUILD_DIR"' EXIT
-BUILD_REPORT="$BUILD_DIR/report.md"
-BUILD_EVENTS="$BUILD_DIR/events.jsonl"
-BUILD_STDERR="$BUILD_DIR/stderr.log"
-if ! timeout 600 codex exec "${CODEX_ARGS[@]}" --dangerously-bypass-approvals-and-sandbox --json -o "$BUILD_REPORT" - <"$P" >"$BUILD_EVENTS" 2>"$BUILD_STDERR"; then
+BUILD_REPORT="$PHASE_DIR/report.md"
+BUILD_EVENTS="$PHASE_DIR/events.jsonl"
+BUILD_STDERR="$PHASE_DIR/stderr.log"
+if ! timeout 600 codex exec "${BUILD_ACCESS[@]}" "${CODEX_ARGS[@]}" --json -o "$BUILD_REPORT" - <"$P" >"$BUILD_EVENTS" 2>"$BUILD_STDERR"; then
   printf 'Codex build failed; inspect %s and %s.\n' "$BUILD_EVENTS" "$BUILD_STDERR" >&2
   exit 1
 fi
@@ -128,16 +141,21 @@ Codex's report is advisory. Verify in the isolated worker:
 
 1. `git status -sb` + read the FULL diff (`git diff`). Judge it like a contributor PR: correctness, spec fidelity, style match with surrounding code, nothing touched outside scope.
 2. Run `PROOF_CMD` yourself (or the focused tests for the changed area). Codex's pasted output doesn't count as proof.
-3. Append to `LOG_FILE` under `## Act 3 — Build`: `### Round <n> — Codex build` + its report summary + `### Claude's verdict` + what passed/failed review.
+3. Check newly created/untracked files as well as tracked changes, and map proof
+   results to the phase’s acceptance criteria. At final verification cover the
+   original user request and full integration proof, including cross-phase behavior.
+4. Append to `LOG_FILE` under `## Act 3 — Build`: `### Round <n> — Codex build` + its report summary + `### Claude's verdict` + what passed/failed review.
 
 ## Step 4 — Fix loop (same session, bounded)
 
 Problems found → resume the SAME session (Codex keeps its context; cheaper and better than a fresh run). Write the fix list to a temp file (`$P2`), same contract discipline: exact problem, exact file, proof expected.
 
 ```bash
-# resume has no --yolo and no -C: run from the repo dir and spell the long flag,
-# or Codex inherits config.toml's sandbox (possibly read-only) and can't write.
-if ! timeout 600 codex exec "${CODEX_ARGS[@]}" resume "$THREAD_ID" --dangerously-bypass-approvals-and-sandbox --json \
+# Resume from the worker directory with the same authorized access and model.
+BUILD_REPORT=$(mktemp "$PHASE_DIR/fix-report.XXXXXX")
+BUILD_EVENTS="$BUILD_REPORT.events.jsonl"
+BUILD_STDERR="$BUILD_REPORT.stderr.log"
+if ! timeout 600 codex exec resume "$THREAD_ID" "${BUILD_ACCESS[@]}" "${CODEX_ARGS[@]}" --json \
   -o "$BUILD_REPORT" - <"$P2" >"$BUILD_EVENTS" 2>"$BUILD_STDERR"
 then
   printf 'Codex build resume failed; inspect %s and %s.\n' "$BUILD_EVENTS" "$BUILD_STDERR" >&2

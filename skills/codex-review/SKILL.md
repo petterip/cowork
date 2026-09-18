@@ -5,6 +5,8 @@ description: "Cross-model plan review: Claude drafts or loads PLAN.md, Codex cri
 
 # Codex-Review — Adversarial Plan-Review Loop
 
+Follow [the shared delegation contract](../codex-claude-rally/references/delegation.md) from this skill’s resolved directory (follow symlinks). Named agents are defaults; explicit choices use the selected provider’s workflow.
+
 Two models, one plan, a bounded argument. **Claude is the builder and orchestrator. Codex is a no-edit critic.** The child inherits full access when the user already authorized it; the review prompt still forbids file changes. They communicate through `PLAN.md` and a persistent Codex session. The human enters at kickoff and final sign-off.
 
 This is a **deliberate, high-stakes tool** — reach for it on auth, data models, concurrency, migrations, payments, anything expensive to get wrong. Skip it for obvious/cheap work.
@@ -14,7 +16,7 @@ This is a **deliberate, high-stakes tool** — reach for it on auth, data models
 - Codex CLI installed and recent: `codex --version` (need ≥ 0.130; the default `gpt-5.5` model errors on older CLIs).
 - Codex authenticated: a prior `codex login` (ChatGPT account is fine). If a run returns an auth/model error, surface it to the user — do not silently retry.
 - Do NOT pin `-m` unless the user asks. The user's `~/.codex/config.toml` default model is used. Pinning `gpt-5.x-codex` variants fails on ChatGPT-account auth.
-- **Echo the active model before Round 1** so the user can confirm: read the `model` line from `~/.codex/config.toml` (absent = "CLI default"); state it with the resolved tunables. If the user objects, stop before burning a round.
+- **Echo the selected model before Round 1**: use the requested reviewer model, otherwise the configured default (or "CLI default" if unset). If the user objects, stop before launch.
 - Preserve the parent access mode on both the initial run and resume. The prompt,
   not a silent permission downgrade, enforces the no-edit review role.
 
@@ -69,6 +71,14 @@ Started <stamp the user's local time if known, else "session start">. MAX_ROUNDS
 
 Show the user the plan inline and say you're sending it to Codex for adversarial review.
 
+Resolve `RALLY_SCRIPTS` to `../codex-claude-rally/scripts` from this skill’s
+real directory. Set `CODEX_MODEL` to the requested reviewer slug, or unset it
+for the configured default.
+
+Preserve artifact paths and thread IDs across shell calls until verification
+and logging finish. Each phase approval covers only its stated criteria;
+whole-plan approval requires all criteria and cross-phase contracts checked.
+
 ### Step 2 — The loop
 
 Maintain `ROUND` (start 1) and `THREAD_ID` (empty until round 1 returns).
@@ -79,27 +89,32 @@ diagnostic trail. Do not use predictable files directly under `/tmp`.
 ```bash
 RUN_DIR=$(mktemp -d "${TMPDIR:-/tmp}/codex-review.XXXXXX")
 chmod 700 "$RUN_DIR"
-trap 'rm -rf "$RUN_DIR"' EXIT
 PROMPT_FILE="$RUN_DIR/review-prompt.md"
 VERDICT_FILE="$RUN_DIR/verdict.md"
 EVENTS_FILE="$RUN_DIR/events.jsonl"
 STDERR_FILE="$RUN_DIR/stderr.log"
 ```
 
-**The review prompt** sent to Codex each round (adjust the task line):
-
-> You are an adversarial reviewer for an implementation plan. Be skeptical and specific — your job is to find what breaks, not to be agreeable. Read the plan at `PLAN.md` (and any repo files you need; you are read-only). Identify concrete flaws: security holes, race conditions, missing edge cases, schema conflicts, wrong assumptions, observability gaps, simpler alternatives, and a Verification section whose proof would not catch a failed implementation. For each, give a one-line fix. Do NOT modify any files. End your reply with EXACTLY one line: `VERDICT: APPROVED` if the plan is sound enough to implement, or `VERDICT: REVISE` if it still has material problems.
+Tailor the prompt below to the current phase and acceptance criteria; the
+orchestrator retains the full plan and verifies cross-phase consistency.
 
 **Access inheritance:** if the user authorized full access or Codex config has `approval_policy="never"` with `sandbox_mode="danger-full-access"`, set both access variables to `--dangerously-bypass-approvals-and-sandbox`. Otherwise retain the read-only defaults below. Full-access reviewers must still follow the prompt's no-edit instruction.
 
 **Round 1** (creates the session — capture `thread_id`):
 
 ```bash
-if rg -q '^approval_policy\s*=\s*"never"' ~/.codex/config.toml && rg -q '^sandbox_mode\s*=\s*"danger-full-access"' ~/.codex/config.toml; then CODEX_EXEC_ACCESS=--dangerously-bypass-approvals-and-sandbox; CODEX_RESUME_ACCESS=--dangerously-bypass-approvals-and-sandbox; else CODEX_EXEC_ACCESS='-s read-only'; CODEX_RESUME_ACCESS='-c sandbox_mode="read-only"'; fi
+MODEL_ARGS=()
+if [[ -n "${CODEX_MODEL:-}" ]]; then MODEL_ARGS=(--model "$CODEX_MODEL"); fi
+CODEX_EXEC_ACCESS=(-s read-only)
+CODEX_RESUME_ACCESS=(-c 'sandbox_mode="read-only"')
+if [[ "$("$RALLY_SCRIPTS/detect-full-access.sh")" == full ]]; then
+  CODEX_EXEC_ACCESS=(--dangerously-bypass-approvals-and-sandbox)
+  CODEX_RESUME_ACCESS=(--dangerously-bypass-approvals-and-sandbox)
+fi
 cat >"$PROMPT_FILE" <<'EOF'
-You are an adversarial reviewer for an implementation plan. Be skeptical and specific — your job is to find what breaks, not to be agreeable. Read PLAN.md and any repository files you need. Do not modify files. Identify concrete flaws: security holes, race conditions, missing edge cases, schema conflicts, wrong assumptions, observability gaps, simpler alternatives, and a Verification section whose proof would not catch a failed implementation. Give a one-line fix for each. End with exactly one line: VERDICT: APPROVED or VERDICT: REVISE.
+Review <current phase and relevant sections of PLAN.md> and the repository sources needed to verify it. Work read-only. Assess whether the proposed behavior and proof satisfy <acceptance criteria>, including affected compatibility and safety boundaries. Report material flaws with source evidence, a concrete failure scenario, and a concise fix; flag missing evidence. End with exactly VERDICT: APPROVED if sound enough to implement, otherwise VERDICT: REVISE.
 EOF
-if ! timeout 600 codex exec $CODEX_EXEC_ACCESS --json -o "$VERDICT_FILE" \
+if ! timeout 600 codex exec "${CODEX_EXEC_ACCESS[@]}" "${MODEL_ARGS[@]}" --json -o "$VERDICT_FILE" \
   "$(<"$PROMPT_FILE")" < /dev/null >"$EVENTS_FILE" 2>"$STDERR_FILE"; then
   printf 'Codex review launch failed; inspect %s and %s.\n' "$EVENTS_FILE" "$STDERR_FILE" >&2
   exit 1
@@ -109,8 +124,6 @@ THREAD_ID=$(jq -r 'select(.type == "thread.started") | .thread_id' "$EVENTS_FILE
 ```
 The critique text lands in `$VERDICT_FILE` (Codex's last message). Read that file.
 
-> Note: stderr carries cosmetic MCP/auth noise on some setups — `2>/dev/null` is intentional. Confirm success by the presence of the verdict file + a `thread.started` line. If neither appears, the run failed (auth/model) — stop and tell the user.
->
 > **`< /dev/null` is mandatory:** `codex exec` reads stdin *in addition to* the prompt arg, so under a non-interactive driver (Claude Code's Bash tool, CI, any non-TTY pipeline) it blocks forever waiting on stdin EOF — a silent ~0% CPU hang. The redirect gives it immediate EOF. Required on the resume call below too.
 >
 > **Timeout guard:** run every `codex exec` / `codex exec resume` with a 10-minute ceiling so any future stall fails loud instead of hanging silently. Via Claude Code's Bash tool, pass `timeout: 600000` on the tool call (the default 2-minute tool timeout is too short for real reviews and would kill them mid-run). In a plain shell, prefix the command with `timeout 600` (Linux / Git Bash) or `gtimeout 600` (macOS via coreutils — stock macOS has no `timeout`). If the ceiling trips, treat it as a failed run: stop and tell the user rather than retrying blind. Applies to the resume call below too.
@@ -120,9 +133,12 @@ The critique text lands in `$VERDICT_FILE` (Codex's last message). Read that fil
 ```bash
 # NOTE: resume rejects -s. Force read-only via -c sandbox_mode, or Codex
 # inherits config.toml (possibly danger-full-access) and could write files.
-if ! timeout 600 codex exec resume "$THREAD_ID" $CODEX_RESUME_ACCESS --json \
+VERDICT_FILE=$(mktemp "$RUN_DIR/verdict.XXXXXX")
+EVENTS_FILE="$VERDICT_FILE.events.jsonl"
+STDERR_FILE="$VERDICT_FILE.stderr.log"
+if ! timeout 600 codex exec resume "$THREAD_ID" "${CODEX_RESUME_ACCESS[@]}" "${MODEL_ARGS[@]}" --json \
   -o "$VERDICT_FILE" \
-  "I revised the plan. Re-review PLAN.md. Same rules. End with VERDICT: APPROVED or VERDICT: REVISE." \
+  "Re-review the revised phase in PLAN.md against the same acceptance criteria, read-only. Report remaining material flaws with evidence and fixes. End with VERDICT: APPROVED or VERDICT: REVISE." \
   < /dev/null >"$EVENTS_FILE" 2>"$STDERR_FILE"; then
   printf 'Codex review resume failed; inspect %s and %s.\n' "$EVENTS_FILE" "$STDERR_FILE" >&2
   exit 1

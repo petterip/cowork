@@ -5,6 +5,8 @@ description: Plan work in Codex and use an independent second model. Use when re
 
 # Plan
 
+Follow [the shared delegation contract](../codex-claude-rally/references/delegation.md) from this skill’s resolved directory (follow symlinks). Named agents are defaults; explicit choices use the selected provider’s workflow.
+
 Resolve the goal and write a bounded implementation plan. For material work,
 read `../codex-claude-rally/SKILL.md` relative to this skill's real base
 directory after following any symlink, and delegate a read-only challenge review

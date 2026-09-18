@@ -4,6 +4,9 @@ argument-hint: "[--base <ref>] [--codex|--gemini|--copilot] [--model <slug>|--mo
 allowed-tools: Bash(*cowork-route.sh:*)
 ---
 
+Follow `$CLAUDE_PLUGIN_ROOT/skills/codex-claude-rally/references/delegation.md`
+for the task scope and per-phase provider/model choice before routing.
+
 Review the current code or diff, not an implementation plan.
 
 Run `$CLAUDE_PLUGIN_ROOT/scripts/cowork-route.sh review "$ARGUMENTS"`. When the
@@ -14,7 +17,7 @@ uses the official plugin runtime when available and the local `codex review`
 fallback otherwise. Include `--gemini` only when the user explicitly asks for
 Gemini; the router then uses Antigravity (`agy`) and resolves the current
 Gemini Flash slug from `agy models`. Include `--copilot` only when the user
-explicitly asks for GitHub Copilot CLI. Combine `--gemini --copilot` to resolve
+explicitly asks for GitHub Copilot CLI. Use `--copilot --model-family "gemini flash"` to resolve
 Gemini Flash from Copilot's live model list. Pass `--model` only for an exact
 slug; do not invent a version. Include `--codex` when the user explicitly asks
 for Codex with a named model or reasoning effort. Pass `--effort` only when the

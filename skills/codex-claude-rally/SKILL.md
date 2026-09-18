@@ -5,6 +5,8 @@ description: "Delegate bounded work from Codex to a persistent Claude Code backg
 
 # Codex-Claude Rally
 
+Follow [the shared delegation contract](references/delegation.md) from this skill’s resolved directory (follow symlinks). Named agents are defaults; explicit choices use the selected provider’s workflow.
+
 Use this skill for asynchronous, two-way collaboration. Codex launches Claude with `claude --bg`; Claude publishes an immutable response; Codex independently verifies it and either accepts it, asks one bounded follow-up, or escalates. Do not use `claude -p` as the primary launch. The only exception is the idle `--bg` fallback below.
 
 Read [the job protocol](references/job-protocol.md) before creating or resuming a job.
@@ -48,9 +50,10 @@ RALLY_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/cowork/jobs/$JOB_ID"
 
 Replace the remaining placeholders in `$RALLY_DIR/requests/001.md`. Job creation
 prefills mode, allowed paths, and proof command from the manifest; verify them
-rather than copying them again. Add the task, source-of-truth references,
-non-goals, and the absolute `$RALLY_DIR` path. Keep the request bounded; link to
-long artifacts rather than copying them.
+rather than copying them again. In Task, state the current phase’s outcome and
+observable acceptance criteria. Add relevant source references and the absolute
+`$RALLY_DIR` path; use Non-goals only for concrete scope boundaries (`none` if
+unneeded). Link to exact artifact sections rather than copying whole documents.
 
 For read-only jobs, `allowed_paths` identify review targets; Claude may read the
 request's declared source-of-truth files to verify findings. For write jobs,
@@ -84,12 +87,6 @@ the worker diff even when they touch allowed paths; resolve any hand-back
 conflict only after independent verification with a non-mutating apply check.
 
 ## Launch Claude
-
-Before writing the request, inspect the available Claude worker/model metadata.
-If the worker uses Opus or Fable, keep the request especially concise: state
-the outcome, source-of-truth locations, constraints, and artifact destination,
-then let the model choose its investigation and solution approach. Do not
-prescribe a detailed checklist unless the task is operationally fragile.
 
 Run the gate, then pass Claude the immutable request and the absolute artifact
 directory. Launch from the recorded `repository_path` so the worker sees that

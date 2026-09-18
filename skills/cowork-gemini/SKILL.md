@@ -5,6 +5,8 @@ description: Delegate cowork work to Gemini Flash via the Anti-Gravity CLI (agy)
 
 # Gemini via Anti-Gravity CLI
 
+Follow [the shared delegation contract](../codex-claude-rally/references/delegation.md) from this skill’s resolved directory (follow symlinks). Named agents are defaults; explicit choices use the selected provider’s workflow.
+
 Use Gemini Flash as the independent second model only when the user
 explicitly asks for Gemini or Anti-Gravity. Without that request, keep the
 default pairing and do not mention or invoke it.
@@ -14,8 +16,7 @@ default pairing and do not mention or invoke it.
 Resolve `COWORK_PLUGIN_ROOT` to the plugin root two directories above this
 skill's real base directory after following any symlink.
 
-**Always go through `scripts/invoke-peer-review.sh`. Never call `agy`
-directly.** Every guard in that script exists because a hand-written call
+**For reviews, go through `scripts/invoke-peer-review.sh`.** Every guard in that script exists because a hand-written call
 failed in a way that looked like "Gemini is broken":
 
 | Hand-written call | What happens |
@@ -34,14 +35,14 @@ failed in a way that looked like "Gemini is broken":
   the newest Gemini Flash on the account at run time through
   `scripts/resolve-model.sh --family gemini-flash --via agy --effort <effort>`,
   which reads the live `agy models` list. Never hard-code a generation: today's
-  newest is not next month's. `COWORK_MODEL` wins over resolution when the user
-  supplied an exact id. Announce the resolved slug at kickoff — the script
+  newest is not next month's. An explicit model argument wins; `COWORK_MODEL` supplies the default before
+  live resolution. Announce the resolved slug at kickoff — the script
   prints it to stderr.
 - **Effort.** `medium` by default, `high` for adversarial challenges.
 - **Prompt.** Put everything the peer needs *in the prompt*: the diff, the plan,
   the relevant source. State plainly that it must answer from the text alone and
   run nothing. `cowork-route.sh` does this for review actions by embedding
-  `git diff` and `git status --porcelain`; do the same for any prompt you build
+  the tracked diff and untracked file contents; do the same for any prompt you build
   yourself. Use `--prompt-file` rather than a giant shell argument.
 - **Size.** Prompts over 120 KB automatically go to `agy` on stdin as
   stream-json; over 1 MB the script refuses rather than truncating, because a
@@ -73,9 +74,7 @@ failed in a way that looked like "Gemini is broken":
 ## Rules
 
 - Reviews and plan challenges are read-only; Anti-Gravity sessions must not edit files.
-- Material write work follows the same bounded discipline as the bundled
-  `codex-build` skill: isolated
-  worktree from the recorded source `HEAD`, prompt contract via temp file, and
-  unchanged human gates.
+- For builds and continuation, follow [the peer work workflow](../codex-claude-rally/references/peer-work.md)
+  and use `scripts/invoke-peer-work.sh` with provider `agy`.
 - The initiating model verifies the diff and proof itself. Gemini's report is
   advisory input, never acceptance.

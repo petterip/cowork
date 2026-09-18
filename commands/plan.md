@@ -3,6 +3,10 @@ description: Resolve what to build and produce a cross-model-reviewed implementa
 argument-hint: '[--docs] [existing plan path] [task]'
 ---
 
+First read `$CLAUDE_PLUGIN_ROOT/skills/codex-claude-rally/references/delegation.md`.
+Keep the planning workflow below; use the user’s selected provider/model only
+for its delegated review step. Codex is the reviewer default.
+
 Choose one canonical workflow:
 
 1. Existing plan path or explicit plan-review request: read and run

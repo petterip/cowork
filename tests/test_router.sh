@@ -123,6 +123,7 @@ grep -Fq 'untracked-review-sentinel' "$log"
   COWORK_CODEX_PLUGIN_ROOT="$official" "$router" adversarial-review '--gemini')
 grep -Fq 'agy:-p' "$log"
 grep -Fq 'gemini-4.2-flash-high' "$log"
+grep -Fq -- '--effort high' "$log"
 
 : >"$log"
 (cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
@@ -214,6 +215,27 @@ grep -Fq -- '--gemini cannot be combined with --copilot' "$tmp/route.err"
   COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review '--gemini --model=custom-flash')
 grep -Fq 'agy:-p' "$log"
 grep -Fq 'custom-flash' "$log"
+
+for peer in --gemini --copilot; do
+  : >"$log"
+  (cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+    COWORK_MODEL=stale-default COWORK_CODEX_PLUGIN_ROOT="$official" \
+    "$router" review "$peer --model chosen-model")
+  grep -Fq 'chosen-model' "$log"
+  if grep -Fq 'stale-default' "$log"; then
+    printf '%s\n' 'Environment default overrode the requested model.' >&2
+    exit 1
+  fi
+  : >"$log"
+  (cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+    COWORK_MODEL=configured-model COWORK_CODEX_PLUGIN_ROOT="$official" \
+    "$router" review "$peer")
+  if [[ "$peer" == --gemini ]]; then
+    grep -Fq 'gemini-4.2-flash-medium' "$log"
+  else
+    grep -Fq 'configured-model' "$log"
+  fi
+done
 
 : >"$log"
 (cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \

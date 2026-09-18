@@ -5,6 +5,8 @@ description: Ask a second model to independently review the current Codex work. 
 
 # Review
 
+Follow [the shared delegation contract](../codex-claude-rally/references/delegation.md) from this skill’s resolved directory (follow symlinks). Named agents are defaults; explicit choices use the selected provider’s workflow.
+
 Read `../codex-claude-rally/SKILL.md` relative to this skill's real base
 directory after following any symlink, and create a read-only Claude review job.
 Resolve the reviewed repository root from the user's task workspace and pass it

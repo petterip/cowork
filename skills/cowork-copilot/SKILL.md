@@ -5,6 +5,8 @@ description: Delegate cowork work to GitHub Copilot CLI. Use ONLY when the user 
 
 # GitHub Copilot CLI
 
+Follow [the shared delegation contract](../codex-claude-rally/references/delegation.md) from this skill’s resolved directory (follow symlinks). Named agents are defaults; explicit choices use the selected provider’s workflow.
+
 Use the GitHub Copilot CLI (`copilot` from `@github/copilot`) as a peer only
 when the user explicitly asks for Copilot. The older `gh copilot` extension
 is a different tool and is not this path.
@@ -41,11 +43,12 @@ skill's real base directory after following any symlink.
   `--reasoning-effort`/`--effort` option; never log an effort that was not sent.
 - After a read-only run, verify `git status --porcelain` is unchanged.
 
-## Build
+## Build and continue
 
-Material write work follows the bundled `codex-build` skill's isolated
-worktree and human gates. Reviews
-stay read-only; do not reuse the review allow-list for a builder.
+Follow [the peer work workflow](../codex-claude-rally/references/peer-work.md)
+and use `scripts/invoke-peer-work.sh` with provider `copilot`. It preserves
+explicit model choices and inherited permissions; reviews retain their own
+read-only launcher.
 
 ## Rules
 

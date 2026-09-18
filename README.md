@@ -16,8 +16,10 @@ verifiable. Claude, Codex, Gemini Flash, and GitHub Copilot are peers.
 | Check setup                 | `/cowork:setup`    | `cowork-setup`    |
 
 In Claude Code, Codex is the default other model. In Codex, Claude is the
-default other model. Ask for Gemini or Copilot when you want those peers
-instead. Model names are not peer names: Astra is an OpenAI model inside the
+default other model. These are defaults: the user can choose a supported
+provider and model separately for each phase, including Gemini or Copilot where that operation is supported.
+All routes follow the [delegation contract](skills/codex-claude-rally/references/delegation.md).
+Model names are not peer names: Astra is an OpenAI model inside the
 Codex peer; Opus and Fable are Claude models inside the rally worker
 (`claude --model fable`); Gemini Flash is a model family inside `agy`. Resolve
 a requested model name to its peer CLI and that peer's own model surface —
@@ -33,10 +35,12 @@ requested effort names are forwarded to that CLI for validation.
 Gemini Flash is an explicit opt-in: `/cowork:review --gemini` uses the
 Antigravity CLI (`agy`) and resolves the current Flash slug from `agy models`.
 `--copilot` uses the GitHub Copilot CLI (`copilot` from `@github/copilot`).
-`--gemini --copilot` resolves the current Gemini Flash id from Copilot's live
-model list reported by `copilot help config`. Pass `--model <slug>` or set
-`COWORK_MODEL` only when you need an
-exact id; the plugin does not keep versions in source.
+`--copilot --model-family "gemini flash"` resolves the current Gemini Flash id from Copilot's live
+model list reported by `copilot help config`. Pass `--model <slug>` or set `COWORK_MODEL` only when you need an
+exact id; the plugin does not keep versions in source. Gemini and Copilot
+use separate review and [write/continuation launchers](skills/codex-claude-rally/references/peer-work.md).
+Build phases share an isolated worktree; continuation uses a compact fresh
+handoff or an explicitly identified session.
 
 `plan` also covers documentation-aware planning and review of an existing
 plan. `build` requires an approved plan and independent proof. `review` never
@@ -152,6 +156,8 @@ tests/test_claude_plugin.sh
 tests/test_router.sh
 tests/test_install.sh
 tests/test_resolve_model.sh
+python3 tests/test_build_workflow.py
+python3 tests/test_peer_work.py
 skills/codex-claude-rally/scripts/test_contract.sh
 ```
 

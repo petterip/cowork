@@ -26,7 +26,7 @@ usage: invoke-peer-review.sh <agy|copilot> <model|auto> (<prompt> | --prompt-fil
              `--family gemini-flash --via copilot` asks Copilot for Gemini.
 
 Environment:
-  COWORK_MODEL           exact slug, wins over resolution
+  COWORK_MODEL           default slug when the model argument is auto
   COWORK_EFFORT          peer-supported level name, default medium
   COWORK_PRINT_TIMEOUT   print-mode ceiling, default 10m
   COWORK_PROMPT_MAX_BYTES  refuse prompts larger than this, default 1000000
@@ -49,11 +49,12 @@ prompt=''
 prompt_file=''
 effort=${COWORK_EFFORT:-medium}
 family=''
+family_requested=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --prompt-file) [[ $# -ge 2 ]] || fail '--prompt-file requires a path.'; prompt_file=$2; shift 2 ;;
     --effort) [[ $# -ge 2 ]] || fail '--effort requires a value.'; effort=$2; shift 2 ;;
-    --family) [[ $# -ge 2 ]] || fail '--family requires a value.'; family=$2; shift 2 ;;
+    --family) [[ $# -ge 2 ]] || fail '--family requires a value.'; family=$2; family_requested=1; shift 2 ;;
     --) shift; prompt=${1-}; shift $(( $# > 0 ? 1 : 0 )) ;;
     *) [[ -z "$prompt" ]] || fail 'pass the prompt once, or use --prompt-file.'; prompt=$1; shift ;;
   esac
@@ -86,10 +87,10 @@ fi
 
 # Resolution lives here, at the single choke point, so an unspecified model is
 # always the latest Flash rather than whatever the caller remembered.
-if [[ (-z "$model" || "$model" == auto) && -n "${COWORK_MODEL-}" ]]; then
-  model=$COWORK_MODEL
-elif [[ -z "$model" || "$model" == auto ]]; then
-  model=$("$script_dir/resolve-model.sh" --family "$family" --via "$via" --effort "$effort")
+if [[ -z "$model" || "$model" == auto ]]; then
+  model_override=${COWORK_MODEL-}
+  if (( family_requested )) && [[ "$family" == gemini-flash ]]; then model_override=''; fi
+  model=$(COWORK_MODEL="$model_override" "$script_dir/resolve-model.sh" --family "$family" --via "$via" --effort "$effort")
 fi
 [[ -n "$model" ]] || fail 'model must not be empty.'
 
@@ -110,6 +111,7 @@ if [[ "$via" == agy ]]; then
   if (( prompt_bytes <= argv_max )); then
     agy -p "$prompt" \
       --model "$model" \
+      --effort "$effort" \
       --print-timeout "${COWORK_PRINT_TIMEOUT:-10m}" \
       --sandbox
     exit $?
@@ -132,6 +134,7 @@ if [[ "$via" == agy ]]; then
       --input-format stream-json \
       --output-format stream-json \
       --model "$model" \
+      --effort "$effort" \
       --print-timeout "${COWORK_PRINT_TIMEOUT:-10m}" \
       --sandbox >"$transcript" || pipeline_status=$?
 

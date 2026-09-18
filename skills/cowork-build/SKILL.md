@@ -5,6 +5,8 @@ description: Build a frozen plan by delegating implementation to a second model 
 
 # Build
 
+Follow [the shared delegation contract](../codex-claude-rally/references/delegation.md) from this skill’s resolved directory (follow symlinks). Named agents are defaults; explicit choices use the selected provider’s workflow.
+
 Freeze the implementation plan from the user's request and available source
 artifacts without requiring separate human approval. The source checkout may
 contain staged, unstaged, or untracked user work: record it, leave it untouched,
@@ -15,8 +17,6 @@ base directory after following any symlink, and create a write job in an
 isolated Claude worktree. Codex must inspect the complete scoped diff and run
 proof independently before asking the user whether to apply or commit it. At
 hand-back, never overwrite local work: apply-check against the source checkout
-and surface an overlap for user resolution. When the user explicitly asks for
-Gemini or Anti-Gravity as the builder, run it via the Anti-Gravity CLI (`agy`)
-following `../cowork-gemini/SKILL.md` with the
-same worktree, proof, and hand-back rules. When the user explicitly asks for
-GitHub Copilot as the builder, follow `../cowork-copilot/SKILL.md`.
+and surface an overlap for user resolution. For an explicitly selected Gemini or Copilot builder, follow
+`../cowork-gemini/SKILL.md` or `../cowork-copilot/SKILL.md` and use their shared
+peer work launcher in the same isolated worktree, with independent proof.
