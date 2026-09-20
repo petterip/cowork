@@ -46,7 +46,15 @@ if [[ "${1-} ${2-}" == "debug models" ]]; then
 fi
 exit 1
 EOF
-chmod +x "$fake_bin/agy" "$fake_bin/copilot" "$fake_bin/codex"
+cat >"$fake_bin/claude" <<'EOF'
+#!/usr/bin/env bash
+if [[ "${1-} ${2-}" == "auth status" ]]; then
+  printf '%s\n' '{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty","subscriptionType":"max"}'
+  exit 0
+fi
+exit 0
+EOF
+chmod +x "$fake_bin/agy" "$fake_bin/copilot" "$fake_bin/codex" "$fake_bin/claude"
 
 tool_path=$(dirname "$(command -v rg)")
 export PATH="$fake_bin:$tool_path:/usr/bin:/bin"
@@ -61,6 +69,26 @@ export PATH="$fake_bin:$tool_path:/usr/bin:/bin"
 [[ "$("$resolver" --family named --via codex --query orion)" == future-orion-42 ]]
 [[ "$(COWORK_MODEL=wrong-slug "$resolver" --family named --via copilot --query luna)" == gpt-6-luna ]]
 [[ "$(COWORK_MODEL=custom-slug "$resolver" --family gemini-flash --via agy)" == custom-slug ]]
+
+# Claude Code publishes aliases, not versioned slugs, so the newest Opus stays
+# reachable by its alias instead of a generation that rots.
+[[ "$("$resolver" --family auto --via claude)" == opus ]]
+[[ "$("$resolver" --family named --via claude --query 'Opus 5')" == opus ]]
+[[ "$("$resolver" --family named --via claude --query fable)" == fable ]]
+[[ "$("$resolver" --family named --via claude --query 'claude-opus-5')" == opus ]]
+[[ "$("$resolver" --family named --via claude --query future-harbor-17)" == future-harbor-17 ]]
+[[ "$(COWORK_MODEL=custom-slug "$resolver" --family auto --via claude)" == custom-slug ]]
+
+if err=$("$resolver" --family gemini-flash --via claude 2>&1); then
+  printf '%s\n' 'expected resolve-model to reject Gemini Flash on the Claude peer' >&2
+  exit 1
+fi
+printf '%s\n' "$err" | grep -Fq 'gemini-flash'
+if err=$("$resolver" --family named --via claude --query '???' 2>&1); then
+  printf '%s\n' 'expected resolve-model to reject an unusable Claude alias' >&2
+  exit 1
+fi
+printf '%s\n' "$err" | grep -Fq 'claude matches no known alias'
 
 cat >"$fake_bin/agy" <<'EOF'
 #!/usr/bin/env bash

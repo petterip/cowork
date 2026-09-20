@@ -16,7 +16,11 @@ verifiable. Claude, Codex, Gemini Flash, and GitHub Copilot are peers.
 | Check setup                 | `/cowork:setup`    | `cowork-setup`    |
 
 In Claude Code, Codex is the default other model. In Codex, Claude is the
-default other model. These are defaults: the user can choose a supported
+default other model. The `cowork` skill is the front door on hosts that have no
+`/cowork:*` commands: it routes a one-shot peer question to
+`scripts/invoke-peer-review.sh` and escalates to a durable job only when the
+work must be built, resumed, or audited. The defaults are only defaults: the
+user can choose a supported
 provider and model separately for each phase, including Gemini or Copilot where that operation is supported.
 All routes follow the [delegation contract](skills/codex-claude-rally/references/delegation.md).
 Model names are not peer names: Astra is an OpenAI model inside the
@@ -103,6 +107,15 @@ opencode:
 ./install.sh --agent opencode
 ```
 
+DeepSeek Harness and other hosts that discover `~/.agents`:
+
+```bash
+./install.sh --agent dsh
+```
+
+The skills are linked into `$DSH_AGENTS_HOME/skills`, which defaults to
+`~/.agents/skills` and is the user skill root those hosts read.
+
 GitHub Copilot CLI skills from a clone:
 
 ```bash
@@ -115,11 +128,23 @@ Install Claude Code and Codex from a clone:
 ./install.sh --agent both
 ```
 
-Install everywhere (Claude Code, Codex, opencode, and Copilot skills):
+Install everywhere (Claude Code, Codex, opencode, Copilot, and `~/.agents` hosts):
 
 ```bash
 ./install.sh --agent all
 ```
+
+Audit or repair an existing installation without guessing:
+
+```bash
+./install.sh --check --agent all   # report missing, stale, and foreign links
+./install.sh --repair --agent all  # replace dangling links to a renamed clone
+```
+
+`--check` writes nothing and exits non-zero while any link needs attention.
+`--repair` replaces only dangling links that point at a Cowork checkout, which
+is what a renamed clone leaves behind; a link or directory this installer does
+not own stays a collision and is never moved.
 
 The official `codex@openai-codex` Claude Code plugin is optional. When present,
 Cowork uses its review, adversarial-review, status, and session-transfer paths.
@@ -158,6 +183,8 @@ tests/test_install.sh
 tests/test_resolve_model.sh
 python3 tests/test_build_workflow.py
 python3 tests/test_peer_work.py
+python3 tests/test_peer_review.py
+python3 tests/test_doctor.py
 skills/codex-claude-rally/scripts/test_contract.sh
 ```
 

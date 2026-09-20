@@ -22,14 +22,18 @@ done
 
 [[ "$family" == gemini-flash || "$family" == auto || "$family" == named ]] ||
   fail 'family must be gemini-flash, auto, or named.'
-[[ "$via" == agy || "$via" == copilot || "$via" == codex ]] ||
-  fail 'via must be agy, copilot, or codex.'
+[[ "$via" == agy || "$via" == copilot || "$via" == codex || "$via" == claude ]] ||
+  fail 'via must be agy, copilot, codex, or claude.'
 [[ "$effort" =~ ^[[:alnum:]][[:alnum:]_.-]*$ ]] || fail 'effort must be a CLI-safe level name.'
 if [[ "$family" == named ]]; then
   [[ -n "$query" ]] || fail 'family named requires --query.'
-  [[ "$via" == copilot || "$via" == codex ]] || fail 'family named is only valid via copilot or codex.'
+  [[ "$via" == copilot || "$via" == codex || "$via" == claude ]] ||
+    fail 'family named is only valid via copilot, codex, or claude.'
 elif [[ -n "$query" ]]; then
   fail '--query is only valid with family named.'
+fi
+if [[ "$family" == gemini-flash && "$via" == claude ]]; then
+  fail 'gemini-flash is only valid via agy or copilot, not claude.'
 fi
 
 if [[ "$family" != named && -n "${COWORK_MODEL-}" ]]; then
@@ -115,6 +119,34 @@ list_codex_slugs() {
   jq -r '.. | objects | (.slug? // .id? // empty)' <<<"$json" | sort -u
 }
 
+# Claude Code publishes aliases, not a versioned catalog: `--model opus` is the
+# current Opus and stays correct across generations. Resolution therefore maps a
+# requested name onto an alias; a pinned slug would rot at the next release.
+list_claude_aliases() {
+  printf '%s\n' opus sonnet haiku fable
+}
+
+claude_alias_from_query() {
+  local query=$1
+  local lower
+  local alias
+  command -v claude >/dev/null 2>&1 || fail 'the Claude Code CLI (claude) is required.'
+  lower=$(printf '%s' "$query" | tr '[:upper:]' '[:lower:]')
+  while IFS= read -r alias; do
+    if [[ "$lower" == *"$alias"* ]]; then
+      printf '%s\n' "$alias"
+      return 0
+    fi
+  done < <(list_claude_aliases)
+  # A CLI-safe alias the user supplied themselves — including a family published
+  # after this script — passes through for the Claude CLI to validate.
+  if [[ "$lower" =~ ^[a-z][a-z0-9._-]*$ ]]; then
+    printf '%s\n' "$lower"
+    return 0
+  fi
+  fail "claude matches no known alias in '$query'; pass an exact alias with --model."
+}
+
 pick_named() {
   local name=$1
   shift
@@ -133,17 +165,27 @@ pick_named() {
 if [[ "$family" == named ]]; then
   if [[ "$via" == copilot ]]; then
     slugs=$(list_copilot_slugs)
-  else
+  elif [[ "$via" == codex ]]; then
     slugs=$(list_codex_slugs)
+  else
+    claude_alias_from_query "$query"
+    exit 0
   fi
   pick_named "$query" "$slugs"
   exit 0
 fi
 
 if [[ "$family" == auto ]]; then
-  [[ "$via" == copilot ]] || fail 'family auto is only valid via copilot.'
-  printf '%s\n' auto
-  exit 0
+  if [[ "$via" == copilot ]]; then
+    printf '%s\n' auto
+    exit 0
+  fi
+  if [[ "$via" == claude ]]; then
+    command -v claude >/dev/null 2>&1 || fail 'the Claude Code CLI (claude) is required.'
+    printf '%s\n' opus
+    exit 0
+  fi
+  fail 'family auto is only valid via copilot or claude.'
 fi
 
 if [[ "$via" == agy ]]; then

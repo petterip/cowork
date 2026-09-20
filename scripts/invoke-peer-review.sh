@@ -17,23 +17,25 @@ fail() {
 
 usage() {
   cat >&2 <<'USAGE'
-usage: invoke-peer-review.sh <agy|copilot> <model|auto> (<prompt> | --prompt-file <path>)
+usage: invoke-peer-review.sh <agy|copilot|claude> <model|auto> (<prompt> | --prompt-file <path>)
 
-  model      an exact slug, or `auto` (also the empty string) to resolve the
-             latest Gemini Flash for agy / Copilot's own default.
+  model      an exact slug or alias, or `auto` (also the empty string) to
+             resolve the latest Gemini Flash for agy, Copilot's own default,
+             or Claude's current Opus alias.
   --effort   peer-supported level name, default medium (also COWORK_EFFORT).
-  --family   gemini-flash|auto; default gemini-flash for agy, auto for copilot.
-             `--family gemini-flash --via copilot` asks Copilot for Gemini.
+  --family   gemini-flash|auto; default gemini-flash for agy, auto for copilot
+             and claude. `--family gemini-flash --via copilot` asks Copilot for
+             Gemini.
 
 Environment:
   COWORK_MODEL           default slug when the model argument is auto
   COWORK_EFFORT          peer-supported level name, default medium
-  COWORK_PRINT_TIMEOUT   print-mode ceiling, default 10m
+  COWORK_PRINT_TIMEOUT   agy print-mode ceiling, default 10m
   COWORK_PROMPT_MAX_BYTES  refuse prompts larger than this, default 1000000
-  COWORK_ARGV_MAX_BYTES    above this, the prompt goes to agy on stdin as
-                           stream-json instead of as an argument; default
-                           120000, just under the kernel's 128 KiB limit for a
-                           single argument.
+  COWORK_ARGV_MAX_BYTES    above this, an oversized prompt goes to the peer on
+                           stdin — stream-json for agy, plain text for claude —
+                           instead of as an argument; default 120000, just under
+                           the kernel's 128 KiB limit for a single argument.
 USAGE
   exit 1
 }
@@ -60,14 +62,18 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-[[ "$via" == agy || "$via" == copilot ]] || fail 'via must be agy or copilot.'
+[[ "$via" == agy || "$via" == copilot || "$via" == claude ]] ||
+  fail 'via must be agy, copilot, or claude.'
 [[ "$effort" =~ ^[[:alnum:]][[:alnum:]_.-]*$ ]] || fail 'effort must be a CLI-safe level name.'
 if [[ -z "$family" ]]; then
   if [[ "$via" == agy ]]; then family=gemini-flash; else family=auto; fi
 fi
 [[ "$family" == gemini-flash || "$family" == auto ]] || fail 'family must be gemini-flash or auto.'
 if [[ "$family" == auto && "$via" == agy ]]; then
-  fail 'family auto is only valid via copilot.'
+  fail 'family auto is only valid via copilot or claude.'
+fi
+if [[ "$family" == gemini-flash && "$via" == claude ]]; then
+  fail 'Gemini Flash is not a Claude model; use agy or copilot for --family gemini-flash.'
 fi
 
 if [[ -n "$prompt_file" ]]; then
@@ -94,8 +100,41 @@ if [[ -z "$model" || "$model" == auto ]]; then
 fi
 [[ -n "$model" ]] || fail 'model must not be empty.'
 
-printf 'cowork: peer review via %s using %s (effort %s, timeout %s)\n' \
-  "$via" "$model" "$effort" "${COWORK_PRINT_TIMEOUT:-10m}" >&2
+if [[ "$via" == claude ]]; then
+  printf 'cowork: peer review via claude using %s (effort %s)\n' "$model" "$effort" >&2
+else
+  printf 'cowork: peer review via %s using %s (effort %s, timeout %s)\n' \
+    "$via" "$model" "$effort" "${COWORK_PRINT_TIMEOUT:-10m}" >&2
+fi
+
+if [[ "$via" == claude ]]; then
+  command -v claude >/dev/null 2>&1 || fail 'the Claude Code CLI (claude) is required.'
+  # Launching a "Claude review" under API-key or cloud-provider credentials would
+  # review with a peer the user did not ask for, so the gate fails closed. Its
+  # own diagnosis goes to stderr; only the success line is suppressed.
+  "$script_dir/../skills/codex-claude-rally/scripts/assert-subscription-auth.sh" >/dev/null ||
+    fail 'Claude subscription authentication is required for the claude peer.'
+  # The same scratch-directory isolation as agy: the peer answers from the
+  # prompt, so the reviewed tree is not in front of it.
+  workspace=$(mktemp -d "${TMPDIR:-/tmp}/cowork-peer-XXXXXX")
+  trap 'rm -rf "$workspace"' EXIT
+  cd "$workspace"
+
+  claude_args=(--model "$model" --effort "$effort")
+  argv_max=${COWORK_ARGV_MAX_BYTES:-120000}
+  status=0
+  if (( prompt_bytes <= argv_max )); then
+    answer=$(claude -p "${claude_args[@]}" -- "$prompt" </dev/null 2>"$workspace/claude-stderr.txt") || status=$?
+  else
+    answer=$(printf '%s' "$prompt" | claude -p "${claude_args[@]}" 2>"$workspace/claude-stderr.txt") || status=$?
+  fi
+  if (( status != 0 )) || [[ -z "$answer" ]]; then
+    cat "$workspace/claude-stderr.txt" >&2 2>/dev/null || true
+    fail "claude produced no answer (exit ${status})."
+  fi
+  printf '%s\n' "$answer"
+  exit 0
+fi
 
 if [[ "$via" == agy ]]; then
   command -v agy >/dev/null 2>&1 || fail 'the Antigravity CLI (agy) is required for Gemini.'

@@ -62,6 +62,12 @@ for skill in plan build review continue status setup gemini copilot; do
   [[ -f "$repo_root/skills/cowork-$skill/SKILL.md" ]]
 done
 
+# The entry skill is what a host without /cowork:* commands reads first, so it
+# must name the one-shot launcher and refuse to turn advice into a job.
+[[ -f "$plugin_root/skills/cowork/SKILL.md" ]]
+rg -Fq 'invoke-peer-review.sh' "$plugin_root/skills/cowork/SKILL.md"
+rg -Fq 'Read-only advice is not a job' "$plugin_root/skills/cowork/SKILL.md"
+
 if rg -n '/cowork:(plan-with-docs|review-plan|handoff)' "$repo_root/README.md" "$repo_root/skills" "$plugin_root/commands"; then
   printf '%s\n' 'Shipped guidance references a removed public command.' >&2
   exit 1
