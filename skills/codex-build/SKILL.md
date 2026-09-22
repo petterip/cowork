@@ -15,6 +15,9 @@ Adapted from Peter Steinberger's `codex-first` pattern (agent-scripts), rebuilt 
 
 **Spec quality decides success.** Derive each phase’s outcome and acceptance criteria from the frozen plan. Fresh phase sessions share the isolated worker worktree; verify each phase and the combined diff and proof before hand-back. Same-session resumes fix the current phase.
 
+Before writing a Codex peer prompt, run
+`"$COWORK_PLUGIN_ROOT/scripts/require-peer-egress.sh" codex`.
+
 ## Prerequisites (verify once, fast)
 
 - Resolve `RALLY_SCRIPTS` to `../codex-claude-rally/scripts` from this skill's

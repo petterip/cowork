@@ -77,7 +77,9 @@ print("peer answered")
     env = {key: value for key, value in os.environ.items()
            if not key.startswith("ANTHROPIC_") and not key.startswith("CLAUDE_CODE_USE_")}
     env.update(PATH=f"{fake_bin}:{os.environ['PATH']}", HOME=str(home),
-               CALL_LOG=str(log), XDG_STATE_HOME=str(tmp / "state"))
+               CALL_LOG=str(log), XDG_STATE_HOME=str(tmp / "state"),
+               COWORK_DATA_CLASSIFICATION="internal",
+               COWORK_APPROVED_DESTINATIONS="claude,agy,copilot")
 
     # A named model reaches Claude as an alias, the review runs outside the
     # repository, and the answer is the peer's stdout.

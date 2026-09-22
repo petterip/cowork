@@ -11,6 +11,11 @@ Follow [the shared delegation contract](references/delegation.md) from this skil
 
 Use this skill for asynchronous, two-way collaboration. Codex launches Claude with `claude --bg`; Claude publishes an immutable response; Codex independently verifies it and either accepts it, asks one bounded follow-up, or escalates. Do not use `claude -p` as the primary launch. The only exception is the idle `--bg` fallback below.
 
+Resolve `COWORK_PLUGIN_ROOT` with `scripts/resolve-cowork-root.sh` before
+writing a Claude peer prompt, then run
+`"$COWORK_PLUGIN_ROOT/scripts/require-peer-egress.sh" claude`. Repeat the gate
+immediately before the print-mode fallback because it is a separate launch.
+
 Read [the job protocol](references/job-protocol.md) before creating or resuming a job.
 
 ## Subscription authentication gate
@@ -96,6 +101,8 @@ working tree. Claude must write only to a temporary response file and rename it
 to `responses/001.md` when complete.
 
 ```bash
+COWORK_PLUGIN_ROOT=$(scripts/resolve-cowork-root.sh)
+"$COWORK_PLUGIN_ROOT/scripts/require-peer-egress.sh" claude
 scripts/assert-subscription-auth.sh
 ACCESS_ARGS=()
 if [[ "$(scripts/detect-full-access.sh)" == full ]]; then ACCESS_ARGS=(--dangerously-skip-permissions); fi
@@ -155,6 +162,7 @@ stick with `--` in place. Deliver the same request from the same directory, with
 stdin closed and a streaming output format:
 
 ```bash
+"$COWORK_PLUGIN_ROOT/scripts/require-peer-egress.sh" claude
 ( cd "$TARGET_REPO" && claude -p "${ACCESS_ARGS[@]}" "${CLAUDE_ARGS[@]}" \
     --add-dir "$RALLY_DIR" --add-dir "$TARGET_REPO" \
     --output-format stream-json --verbose -- "$RALLY_PROMPT" \

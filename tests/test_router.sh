@@ -9,6 +9,8 @@ fake_bin="$tmp/bin"
 official="$tmp/official"
 log="$tmp/calls.log"
 export XDG_STATE_HOME="$tmp/state"
+export COWORK_DATA_CLASSIFICATION=internal
+export COWORK_APPROVED_DESTINATIONS=claude,codex,agy,copilot
 mkdir -p "$fake_bin" "$official/scripts"
 ln -s "$(command -v jq)" "$fake_bin/jq"
 touch "$official/scripts/codex-companion.mjs"
@@ -83,6 +85,14 @@ printf '%s\n' 'binary-deck' >"$peer_repo/slides.deck"
 git -C "$peer_repo" add .gitattributes slides.deck
 git -C "$peer_repo" commit -qm deck
 git -C "$peer_repo" config diff.explode.textconv "printf 'expanded-textconv-sentinel'"
+
+if env -u COWORK_DATA_CLASSIFICATION -u COWORK_APPROVED_DESTINATIONS \
+  PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+  COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review '--wait' 2>"$tmp/egress.err"; then
+  printf '%s\n' 'expected missing peer-egress classification to block routing' >&2
+  exit 1
+fi
+grep -Fq 'COWORK_DATA_CLASSIFICATION' "$tmp/egress.err"
 
 PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
   COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review '--wait'

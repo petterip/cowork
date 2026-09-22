@@ -75,6 +75,19 @@ scripts/cowork doctor
 The capability manifest lives under `${XDG_STATE_HOME:-$HOME/.local/state}` and
 is automatically refreshed when Cowork or a peer CLI version changes.
 
+Before any peer launch, classify the material and allow only the intended peer
+CLI. Cowork refuses confidential and restricted exports and fails closed when
+either setting is absent:
+
+```bash
+export COWORK_DATA_CLASSIFICATION=internal
+export COWORK_APPROVED_DESTINATIONS=claude,codex,copilot,agy
+```
+
+Use `public` instead of `internal` only when that classification is accurate.
+Never use Cowork as an export path for PHI, PII, credentials, customer data, or
+other regulated material.
+
 ## Install
 
 APM (one dependency containing all Cowork skills):

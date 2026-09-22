@@ -59,6 +59,7 @@ done
 [[ ! -e "$output" && ! -L "$output" ]] || fail 'report already exists; choose a new round path.'
 command -v "$via" >/dev/null 2>&1 || fail "$via CLI is required."
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+"$script_dir/require-peer-egress.sh" "$via"
 if [[ -z "$model" || "$model" == auto ]]; then
   model=${COWORK_MODEL-}
 fi

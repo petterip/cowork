@@ -56,6 +56,7 @@ done
 
 [[ "$via" == agy || "$via" == copilot || "$via" == claude ]] ||
   fail 'via must be agy, copilot, or claude.'
+"$script_dir/require-peer-egress.sh" "$via"
 [[ -z "$effort" || "$effort" =~ ^[[:alnum:]][[:alnum:]_.-]*$ ]] ||
   fail 'effort must be a CLI-safe level name.'
 

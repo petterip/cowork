@@ -164,6 +164,7 @@ case "$action" in
       effort=$explicit_effort
       (( copilot_requested )) && via=copilot
       (( claude_requested )) && via=claude
+      "$script_dir/require-peer-egress.sh" "$via"
       if [[ -n "$model_query" ]]; then
         explicit_model=$("$script_dir/resolve-model.sh" --via "$via" --query "$model_query")
       fi
@@ -237,6 +238,7 @@ case "$action" in
       exit "$status"
     fi
     if (( codex_requested )); then
+      "$script_dir/require-peer-egress.sh" codex
       if [[ -n "$model_query" ]]; then
         explicit_model=$("$script_dir/resolve-model.sh" --via codex --query "$model_query")
       fi
@@ -253,9 +255,11 @@ case "$action" in
       exec "${codex_cmd[@]}" review "${review_args[@]}"
     fi
     if [[ -n "$runtime" ]]; then
+      "$script_dir/require-peer-egress.sh" codex
       exec node "$runtime" "$action" "$arguments"
     fi
     [[ "$action" == review ]] || fail 'adversarial review requires codex@openai-codex.'
+    "$script_dir/require-peer-egress.sh" codex
     if [[ ${#focus[@]} -gt 0 ]]; then
       if [[ ${#review_args[@]} -gt 0 ]]; then
         fail 'focused review with --base requires the official Codex plugin, or pass --peer; drop --base to use the local CLI.'
@@ -267,6 +271,7 @@ case "$action" in
     ;;
   transfer|status)
     [[ -n "$runtime" ]] || exit 2
+    [[ "$action" == status ]] || "$script_dir/require-peer-egress.sh" codex
     exec node "$runtime" "$action" "$arguments"
     ;;
   *) fail "unsupported action: $action" ;;

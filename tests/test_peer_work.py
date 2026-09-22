@@ -96,6 +96,8 @@ print("completed:" + prompt)
         CODEX_HOME=str(tmp / "codex-home"),
         XDG_STATE_HOME=str(tmp / "state"),
         RALLY_SCRIPTS=str(ROOT / "skills/codex-claude-rally/scripts"),
+        COWORK_DATA_CLASSIFICATION="internal",
+        COWORK_APPROVED_DESTINATIONS="agy,copilot",
     )
 
     def invoke(mode, via, model, output, *, repo=worker, extra=(), env=base_env,
