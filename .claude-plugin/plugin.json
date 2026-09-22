@@ -1,7 +1,7 @@
 {
   "name": "cowork",
-  "version": "1.5.0",
-  "description": "Plan, build, review, and continue work across Claude, Codex, Gemini, and GitHub Copilot.",
+  "version": "1.6.0",
+  "description": "Plan, build, review, and continue work across Claude, Codex, Anti-Gravity, and GitHub Copilot.",
   "author": {
     "name": "Petteri Ponsimaa"
   }

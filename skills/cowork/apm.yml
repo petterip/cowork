@@ -1,0 +1,10 @@
+name: cowork
+version: 1.6.0
+description: Route requests to an independent second model.
+author: Petteri Ponsimaa
+license: MIT
+dependencies:
+  apm: []
+  mcp: []
+includes: auto
+scripts: {}

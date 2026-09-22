@@ -6,15 +6,14 @@ to Claude. Other hosts use their configured peer, or ask if none is configured.
 Resolve model names through the selected provider’s CLI; announce the phase,
 provider, and model. Apply explicit model or family choices on launch and resume ahead of
 environment defaults; otherwise preserve the route’s documented defaults,
-including model-family resolution. Model choice preserves task and permissions.
+including model-name resolution. Model choice preserves task and permissions.
 
 Select a host-compatible route for the requested operation: `codex-build` /
 `codex-review` cover Codex builds / plan reviews; the review command/router
 covers code review. `codex-claude-rally` covers Codex → Claude jobs.
-`cowork-gemini` and `cowork-copilot` cover their respective peers, including
-Gemini via Copilot when requested. Check each planned route and dependency
+`cowork-agy` and `cowork-copilot` cover their respective peers. Check each planned route and dependency
 before the first launch; use only supported operations and provider-specific
-commands. Gemini and Copilot builds/continuations use
+commands. Anti-Gravity and Copilot builds/continuations use
 [the peer work launcher](peer-work.md). If the requested host/provider/
 operation lacks a supported path, report that gap and ask for a choice.
 

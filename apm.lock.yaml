@@ -1,0 +1,12 @@
+lockfile_version: '1'
+apm_version: 0.30.0
+dependencies:
+- repo_url: _local/cowork
+  name: cowork
+  version: 1.6.0
+  package_type: hybrid
+  source: local
+  local_path: ./skills/cowork
+  is_dev: true
+  declared_license: MIT
+deployments: []

@@ -1,25 +1,26 @@
 ---
 name: cowork-setup
+metadata:
+  version: 1.6.0
 description: Verify that Cowork prerequisites, authentication, full-access inheritance, and artifact storage are ready. Use before the first Cowork job or when delegation fails.
 ---
 
 # Setup
 
-Run `../codex-claude-rally/scripts/verify-environment.sh` relative to this
-skill's real base directory after following any symlink, and report its exact
-result. Do not change credentials.
-A failed required check blocks Claude or
-Codex delegation; restricted full-access status is informational unless the
-user already authorized full access. Gemini (`agy`) and GitHub Copilot CLI
-(`copilot`) are optional until requested. If Claude plugin list still shows
-`cowork@cowork-claude-codex`, report that the shipped id is `cowork@cowork`
-and do not uninstall or install without the user's request.
+Resolve `RALLY_SCRIPTS` to `../codex-claude-rally/scripts` from this skill's
+real directory, then run:
 
-Model names never name CLIs, so availability is never checked with `which
-<model-name>`: OpenAI models (GPT-x, Astra) run through the `codex` peer,
-Claude models (Opus, Fable, Sonnet) through the `claude` peer, Gemini Flash
-through `agy`, Copilot-hosted models through `copilot`. Answer "is <model>
-available" from that peer's own model surface (`agy models`,
-the `model` list in `copilot help config`; Codex has none — its configured default is the
-authority and account auth decides which sibling slugs a real request
-accepts), resolving the slug live rather than guessing.
+```bash
+COWORK_PLUGIN_ROOT=$("$RALLY_SCRIPTS/resolve-cowork-root.sh")
+"$COWORK_PLUGIN_ROOT/scripts/cowork" setup --refresh
+```
+
+This is the only setup discovery path. It finds installed peer CLIs, checks
+whether each executable is usable, reads live model catalogs where the peer
+publishes one, detects supported effort flags, and writes a compact capability
+manifest outside the repository. Report its exact result. Do not install tools,
+change credentials, or repair links unless the user asks.
+
+For a later readiness check, use `scripts/cowork doctor`. For machine-readable
+setup data, use `scripts/cowork setup --json`. Never probe for a binary named
+after a model and never infer a peer from a model table embedded in this skill.

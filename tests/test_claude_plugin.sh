@@ -5,12 +5,14 @@ repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 marketplace="$repo_root/.claude-plugin/marketplace.json"
 plugin_root="$repo_root"
 portable_manifest="$plugin_root/plugin.json"
+apm_manifest="$plugin_root/apm.yml"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
 [[ -f "$marketplace" ]]
 [[ -f "$plugin_root/.claude-plugin/plugin.json" ]]
 [[ -f "$portable_manifest" ]]
+[[ -f "$apm_manifest" ]]
 version=$(jq -r '.version' "$portable_manifest")
 jq -e '.name == "cowork" and .plugins[0].name == "cowork" and .plugins[0].source == "."' "$marketplace" >/dev/null
 jq -e --arg version "$version" '.owner.name == "Petteri Ponsimaa" and .metadata.version == $version and .plugins[0].version == $version and .plugins[0].author.name == "Petteri Ponsimaa"' "$marketplace" >/dev/null
@@ -20,6 +22,25 @@ jq -e '
   and .name == "cowork"
   and .author.name == "Petteri Ponsimaa"
 ' "$portable_manifest" >/dev/null
+python3 - "$apm_manifest" "$version" <<'PY'
+import pathlib
+import sys
+
+manifest = pathlib.Path(sys.argv[1]).read_text()
+version = sys.argv[2]
+required = (
+    "name: cowork\n",
+    f"version: {version}\n",
+    "includes: auto\n",
+    "  - agent-skills\n",
+    "  - claude\n",
+    "  - codex\n",
+    "  - copilot\n",
+)
+missing = [entry.rstrip() for entry in required if entry not in manifest]
+if missing:
+    raise SystemExit(f"Invalid apm.yml; missing: {', '.join(missing)}")
+PY
 
 wrong_identity="Petteri Piir"'onen'
 if rg --hidden -n -g '!.git/**' "$wrong_identity" "$repo_root"; then
@@ -44,21 +65,19 @@ rg -Fq 'cowork-route.sh review' "$plugin_root/commands/review.md"
 rg -Fq '/codex:rescue' "$plugin_root/commands/build.md"
 rg -Fq 'Bash(*resolve-model.sh:*)' "$plugin_root/commands/continue.md"
 rg -Fq 'cowork-route.sh transfer' "$plugin_root/commands/continue.md"
-rg -Fq 'claude plugin list' "$plugin_root/commands/setup.md"
-rg -Fq 'fallback' "$plugin_root/commands/setup.md"
-rg -Fq -- '--family named --via codex' "$plugin_root/skills/codex-build/SKILL.md"
-rg -Fq 'models published after' "$plugin_root/skills/codex-build/SKILL.md"
-rg -Fq 'including families published after' "$plugin_root/skills/cowork-review/SKILL.md"
+rg -Fq 'scripts/cowork setup --refresh' "$plugin_root/commands/setup.md"
+rg -Fq 'scripts/cowork resolve --peer codex' "$plugin_root/skills/codex-build/SKILL.md"
+rg -Fq 'scripts/cowork resolve --model' "$plugin_root/skills/cowork-review/SKILL.md"
 rg -Fq 'CODEX_ARGS=()' "$plugin_root/skills/codex-build/SKILL.md"
 rg -Fq 'CODEX_ARGS+=(-m "$CODEX_MODEL")' "$plugin_root/skills/codex-build/SKILL.md"
 rg -Fq 'CODEX_ARGS+=(-c "model_reasoning_effort=$CODEX_EFFORT")' "$plugin_root/skills/codex-build/SKILL.md"
-rg -Fq 'codex exec "${BUILD_ACCESS[@]}" "${CODEX_ARGS[@]}"' "$plugin_root/skills/codex-build/SKILL.md"
-rg -Fq 'codex exec resume "$THREAD_ID" "${BUILD_ACCESS[@]}" "${CODEX_ARGS[@]}"' "$plugin_root/skills/codex-build/SKILL.md"
-rg -Fq 'claude --model' "$plugin_root/skills/cowork-review/SKILL.md"
-rg -Fq 'Review the changes made with cowork using Opus' "$repo_root/README.md"
-rg -Fq 'GPT-6 Astra at low reasoning effort' "$repo_root/README.md"
+rg -Fq 'codex exec ${BUILD_ACCESS[@]+"${BUILD_ACCESS[@]}"} ${CODEX_ARGS[@]+"${CODEX_ARGS[@]}"}' "$plugin_root/skills/codex-build/SKILL.md"
+rg -Fq 'codex exec resume "$THREAD_ID" ${BUILD_ACCESS[@]+"${BUILD_ACCESS[@]}"} ${CODEX_ARGS[@]+"${CODEX_ARGS[@]}"}' "$plugin_root/skills/codex-build/SKILL.md"
+rg -Fq 'scripts/cowork resolve --model' "$plugin_root/skills/cowork-review/SKILL.md"
+rg -Fq 'scripts/cowork setup --refresh' "$repo_root/README.md"
+rg -Fq 'No model names or versions are built into routing logic' "$repo_root/README.md"
 
-for skill in plan build review continue status setup gemini copilot; do
+for skill in plan build review continue status setup agy copilot; do
   [[ -f "$repo_root/skills/cowork-$skill/SKILL.md" ]]
 done
 
@@ -76,8 +95,55 @@ fi
 for skill_dir in "$plugin_root"/skills/*; do
   skill=${skill_dir##*/}
   [[ -f "$skill_dir/SKILL.md" ]]
+  [[ -f "$skill_dir/apm.yml" ]]
   rg -q "^name: $skill$" "$skill_dir/SKILL.md"
+  rg -q "^name: $skill$" "$skill_dir/apm.yml"
+  rg -q "^version: $version$" "$skill_dir/apm.yml"
+  awk -v expected="$version" '
+    NR == 1 && $0 == "---" { in_frontmatter = 1; next }
+    in_frontmatter && $0 == "---" { exit }
+    in_frontmatter && $0 == "metadata:" { in_metadata = 1; next }
+    in_metadata && $0 ~ /^  version: / {
+      actual = $0
+      sub(/^  version: /, "", actual)
+      found = (actual == expected)
+      exit
+    }
+    in_metadata && $0 !~ /^  / { in_metadata = 0 }
+    END { exit found ? 0 : 1 }
+  ' "$skill_dir/SKILL.md"
 done
+
+if command -v apm >/dev/null 2>&1; then
+  apm_project="$tmp/apm-project"
+  mkdir -p "$apm_project"
+  cat > "$apm_project/apm.yml" <<EOF
+name: cowork-consumer-test
+version: 1.0.0
+description: Verify Cowork's unified APM package.
+author: test
+targets:
+  - agent-skills
+dependencies:
+  apm:
+    - $plugin_root
+  mcp: []
+includes: auto
+scripts: {}
+EOF
+  (
+    cd "$apm_project"
+    apm install --target agent-skills >/dev/null
+  )
+  [[ "$(rg -c '^- repo_url:' "$apm_project/apm.lock.yaml")" == 1 ]]
+  rg -q "^  version: $version$" "$apm_project/apm.lock.yaml"
+  rg -q '^  package_type: skill_bundle$' "$apm_project/apm.lock.yaml"
+  [[ -f "$apm_project/.agents/skills/cowork-plan/SKILL.md" ]]
+  [[ -f "$apm_project/.agents/skills/cowork-setup/SKILL.md" ]]
+  projected_resolver="$apm_project/.agents/skills/codex-claude-rally/scripts/resolve-cowork-root.sh"
+  resolved_root=$(cd "$apm_project" && "$projected_resolver")
+  [[ -x "$resolved_root/scripts/cowork" ]]
+fi
 
 for script in "$plugin_root"/scripts/*.sh "$plugin_root"/skills/codex-claude-rally/scripts/*.sh; do
   [[ -x "$script" ]]
@@ -103,7 +169,7 @@ if command -v copilot >/dev/null 2>&1; then
   COPILOT_HOME="$tmp/copilot" copilot plugin marketplace add "$plugin_root" >/dev/null
   COPILOT_HOME="$tmp/copilot" copilot plugin install cowork@cowork >/dev/null
   discovered=$(COPILOT_HOME="$tmp/copilot" copilot skill list)
-  for skill in plan build review continue status setup gemini copilot; do
+  for skill in plan build review continue status setup agy copilot; do
     rg -q "^  cowork-$skill -" <<<"$discovered"
   done
 fi

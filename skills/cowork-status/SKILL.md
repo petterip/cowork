@@ -1,5 +1,7 @@
 ---
 name: cowork-status
+metadata:
+  version: 1.6.0
 description: Show active and recent Cowork jobs and workers for the current repository. Use when the user asks what cross-model work is running, finished, blocked, or resumable.
 ---
 

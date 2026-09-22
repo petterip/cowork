@@ -1,5 +1,7 @@
 ---
 name: codex-claude-rally
+metadata:
+  version: 1.6.0
 description: "Delegate bounded work from Codex to a persistent Claude Code background worker and exchange verified results through durable, versioned job artifacts. Use when the user asks to hand work between Codex and Claude, request independent Claude implementation or review, or resume a Claude worker. Launch with claude --bg; print mode is only the documented idle-fallback."
 ---
 
@@ -97,9 +99,10 @@ to `responses/001.md` when complete.
 scripts/assert-subscription-auth.sh
 ACCESS_ARGS=()
 if [[ "$(scripts/detect-full-access.sh)" == full ]]; then ACCESS_ARGS=(--dangerously-skip-permissions); fi
-CLAUDE_MODEL=${CLAUDE_MODEL:-opus}   # the Claude alias the user asked for; never a peer or product name
+CLAUDE_ARGS=()
+if [[ -n "${CLAUDE_MODEL-}" ]]; then CLAUDE_ARGS+=(--model "$CLAUDE_MODEL"); fi
 RALLY_PROMPT="Read $RALLY_DIR/requests/001.md. Respect its mode and scope: never edit in read-only mode; in write mode modify only allowed paths. You may read declared source-of-truth files. Publish the result atomically to $RALLY_DIR/responses/001.md, append state events to $RALLY_DIR/events.ndjson, and end the response with READY_FOR_CODEX, NEEDS_CODEX, or WAITING_FOR_HUMAN."
-( cd "$TARGET_REPO" && claude --bg "${ACCESS_ARGS[@]}" --model "$CLAUDE_MODEL" \
+( cd "$TARGET_REPO" && claude --bg "${ACCESS_ARGS[@]}" "${CLAUDE_ARGS[@]}" \
     --name "codex-$JOB_ID" --add-dir "$RALLY_DIR" --add-dir "$TARGET_REPO" \
     -- "$RALLY_PROMPT" ) 2>&1 | tee "$RALLY_DIR/claude-launch-001.txt"
 claude agents --cwd "$TARGET_REPO" --all --json \
@@ -152,7 +155,7 @@ stick with `--` in place. Deliver the same request from the same directory, with
 stdin closed and a streaming output format:
 
 ```bash
-( cd "$TARGET_REPO" && claude -p "${ACCESS_ARGS[@]}" --model "$CLAUDE_MODEL" \
+( cd "$TARGET_REPO" && claude -p "${ACCESS_ARGS[@]}" "${CLAUDE_ARGS[@]}" \
     --add-dir "$RALLY_DIR" --add-dir "$TARGET_REPO" \
     --output-format stream-json --verbose -- "$RALLY_PROMPT" \
     < /dev/null ) | tee "$RALLY_DIR/claude-print-001.txt"

@@ -1,23 +1,25 @@
 ---
-name: cowork-gemini
-description: Delegate cowork work to Gemini Flash via the Anti-Gravity CLI (agy). Use ONLY when the user explicitly asks for Gemini or Anti-Gravity; otherwise cowork pairs Codex with Claude.
+name: cowork-agy
+metadata:
+  version: 1.6.0
+description: Delegate cowork work through the Anti-Gravity CLI (agy). Use only when the user explicitly asks for that peer; otherwise preserve the default pairing.
 ---
 
-# Gemini via Anti-Gravity CLI
+# Anti-Gravity CLI
 
 Follow [the shared delegation contract](../codex-claude-rally/references/delegation.md) from this skill’s resolved directory (follow symlinks). Named agents are defaults; explicit choices use the selected provider’s workflow.
 
-Use Gemini Flash as the independent second model only when the user
-explicitly asks for Gemini or Anti-Gravity. Without that request, keep the
-default pairing and do not mention or invoke it.
+Use this independent peer only when the user explicitly asks for it. Without
+that request, keep the default pairing and do not mention or invoke it.
 
 ## Invocation
 
-Resolve `COWORK_PLUGIN_ROOT` to the plugin root two directories above this
-skill's real base directory after following any symlink.
+Resolve `RALLY_SCRIPTS` to `../codex-claude-rally/scripts` from this skill's
+real directory, then run
+`COWORK_PLUGIN_ROOT=$("$RALLY_SCRIPTS/resolve-cowork-root.sh")`.
 
 **For reviews, go through `scripts/invoke-peer-review.sh`.** Every guard in that script exists because a hand-written call
-failed in a way that looked like "Gemini is broken":
+failed in a way that looked like "the peer is broken":
 
 | Hand-written call | What happens |
 | ----------------- | ------------ |
@@ -28,17 +30,13 @@ failed in a way that looked like "Gemini is broken":
 
 ```bash
 "$COWORK_PLUGIN_ROOT/scripts/invoke-peer-review.sh" agy auto \
-  --effort medium --prompt-file /tmp/review-prompt.txt
+  --prompt-file /tmp/review-prompt.txt
 ```
 
-- **Model.** Pass `auto` unless the user named an exact slug. `auto` resolves
-  the newest Gemini Flash on the account at run time through
-  `scripts/resolve-model.sh --family gemini-flash --via agy --effort <effort>`,
-  which reads the live `agy models` list. Never hard-code a generation: today's
-  newest is not next month's. An explicit model argument wins; `COWORK_MODEL` supplies the default before
-  live resolution. Announce the resolved slug at kickoff — the script
-  prints it to stderr.
-- **Effort.** `medium` by default, `high` for adversarial challenges.
+- **Model.** Pass `auto` when the user supplied no model, which omits the model
+  option and uses the peer's native default. Resolve supplied text through
+  `scripts/cowork resolve --peer agy`; never embed model names in this skill.
+- **Effort.** Pass an effort only when the user or workflow requested it.
 - **Prompt.** Put everything the peer needs *in the prompt*: the diff, the plan,
   the relevant source. State plainly that it must answer from the text alone and
   run nothing. `cowork-route.sh` does this for review actions by embedding
@@ -57,8 +55,7 @@ failed in a way that looked like "Gemini is broken":
   every review run, confirm `git status --porcelain` is unchanged, and
   investigate any new modification before trusting the findings.
 - **Auth.** If the CLI reports an authentication error, surface it verbatim and
-  stop. `resolve-model.sh` prints `agy models`' own stderr rather than claiming
-  the account has no Flash model. Headless runs use cached credentials from a
+  stop. Headless runs use cached credentials from a
   prior interactive `agy` sign-in. Do not retry silently and do not fall back to
   another model.
 
@@ -76,5 +73,5 @@ failed in a way that looked like "Gemini is broken":
 - Reviews and plan challenges are read-only; Anti-Gravity sessions must not edit files.
 - For builds and continuation, follow [the peer work workflow](../codex-claude-rally/references/peer-work.md)
   and use `scripts/invoke-peer-work.sh` with provider `agy`.
-- The initiating model verifies the diff and proof itself. Gemini's report is
+- The initiating model verifies the diff and proof itself. The peer's report is
   advisory input, never acceptance.

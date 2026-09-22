@@ -81,7 +81,7 @@ print(json.dumps({'type': 'thread.started', 'thread_id': 'thread-' + phase}))
             assert calls['args'][calls['args'].index('-m') + 1] == f'model-{phase}'
             assert calls['args'][calls['args'].index('-c') + 1] == 'model_reasoning_effort=xhigh'
             assert ('--dangerously-bypass-approvals-and-sandbox' in calls['args']) == (full_access == '1')
-            assert 'offline' in calls['prompt'] and calls['cwd'] == str(worker)
+            assert 'offline' in calls['prompt'] and Path(calls['cwd']).resolve() == worker.resolve()
             fix = 'P2="$PHASE_DIR/fix.md"\nprintf "Verify offline acceptance" >"$P2"\n'
             # A zero exit without a new report must not reuse the previous report.
             env['NO_REPORT'] = '1'
@@ -110,7 +110,8 @@ print(json.dumps({'type': 'thread.started', 'thread_id': 'thread-' + phase}))
     env.pop('CODEX_MODEL', None)
     env.pop('CODEX_EFFORT', None)
     default_state = shell(setup + '\n' + block('PHASE_DIR=') + '\ndeclare -p CODEX_ARGS', env, worker)
-    assert 'declare -a CODEX_ARGS=()' in default_state
+    assert 'declare -a CODEX_ARGS=' in default_state
+    assert '-m' not in default_state and 'model_reasoning_effort' not in default_state
     # Execute initial and resumed reviews in both permission modes.
     for name in ['codex-review', 'grill-me-codex', 'grill-with-docs-codex']:
         codes = re.findall(r'```bash\n(.*?)\n```',

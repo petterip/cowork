@@ -2,7 +2,7 @@
 
 Use one model to plan, build, review, or continue work with another. Cowork
 selects the direction from the environment and keeps material work bounded and
-verifiable. Claude, Codex, Gemini Flash, and GitHub Copilot are peers.
+verifiable. Claude, Codex, Anti-Gravity, and GitHub Copilot are peers.
 
 ## Commands
 
@@ -21,27 +21,17 @@ default other model. The `cowork` skill is the front door on hosts that have no
 `scripts/invoke-peer-review.sh` and escalates to a durable job only when the
 work must be built, resumed, or audited. The defaults are only defaults: the
 user can choose a supported
-provider and model separately for each phase, including Gemini or Copilot where that operation is supported.
+provider and model separately for each phase where that operation is supported.
 All routes follow the [delegation contract](skills/codex-claude-rally/references/delegation.md).
-Model names are not peer names: Astra is an OpenAI model inside the
-Codex peer; Opus and Fable are Claude models inside the rally worker
-(`claude --model fable`); Gemini Flash is a model family inside `agy`. Resolve
-a requested model name to its peer CLI and that peer's own model surface —
-never probe for a binary named after the model.
+Model names are opaque user data, not peer names. When a request names both a
+peer and a model, the peer wins. Otherwise Cowork matches the name against the
+catalogs discovered on that workstation and proceeds only when one peer/id is
+unambiguous. No model names or versions are built into routing logic.
 
-When a request names both a peer and a model, the peer wins: "Copilot Opus"
-means the newest Opus model in Copilot's live catalog, while "Codex Terra low"
-means the newest Terra model reported by Codex with low reasoning effort.
-Those names are examples, not a built-in matrix. Any family reported later by
-the explicitly selected Copilot or Codex CLI is resolved the same way, and
-requested effort names are forwarded to that CLI for validation.
-
-Gemini Flash is an explicit opt-in: `/cowork:review --gemini` uses the
-Antigravity CLI (`agy`) and resolves the current Flash slug from `agy models`.
-`--copilot` uses the GitHub Copilot CLI (`copilot` from `@github/copilot`).
-`--copilot --model-family "gemini flash"` resolves the current Gemini Flash id from Copilot's live
-model list reported by `copilot help config`. Pass `--model <slug>` or set `COWORK_MODEL` only when you need an
-exact id; the plugin does not keep versions in source. Gemini and Copilot
+Select a peer explicitly with `--peer`; legacy peer-specific flags remain
+accepted for compatibility.
+Pass `--model <name-or-id>` only when the user requested one; otherwise the
+selected peer uses its native default. Anti-Gravity and Copilot
 use separate review and [write/continuation launchers](skills/codex-claude-rally/references/peer-work.md).
 Build phases share an isolated worktree; continuation uses a compact fresh
 handoff or an explicitly identified session.
@@ -54,27 +44,50 @@ verified build.
 ## Usage examples
 
 From Codex or GitHub Copilot CLI, ask the `cowork-review` skill to review local
-changes with Opus:
+changes with a user-selected peer and model:
 
 ```text
-cowork-review Review the changes made with cowork using Opus. Focus on boundary regressions.
+cowork-review Review the changes using Copilot with model <name>. Focus on boundary regressions.
 ```
 
-Cowork resolves Opus to the local Claude peer, reviews the working tree
-read-only with `claude --model opus`, and leaves the initiating model to verify
-and apply any findings.
+Cowork resolves the supplied name from Copilot's discovered catalog, reviews
+the working tree read-only, and leaves the initiating model to verify and apply
+any findings.
 
-From Claude Code, build a frozen plan with GPT-6 Astra at low reasoning effort:
+From Claude Code, build a frozen plan with an explicitly selected Codex model:
 
 ```text
-/cowork:build PLAN.md with GPT-6 Astra at low reasoning effort, then have cowork independently review the result.
+/cowork:build PLAN.md with Codex model <name> at low reasoning effort, then have cowork independently review the result.
 ```
 
-Cowork runs the isolated Codex builder with `-m gpt-6-astra -c
-model_reasoning_effort=low`. Claude then inspects the complete diff and runs the
-plan's proof command independently before asking whether to apply or commit it.
+Cowork resolves the requested name from Codex's discovered catalog and runs the
+isolated builder with the requested effort. The initiating peer then inspects
+the complete diff and runs the plan's proof command independently.
+
+Discover the workstation once before the first delegation or after upgrading a
+peer CLI:
+
+```bash
+scripts/cowork setup --refresh
+scripts/cowork doctor
+```
+
+The capability manifest lives under `${XDG_STATE_HOME:-$HOME/.local/state}` and
+is automatically refreshed when Cowork or a peer CLI version changes.
 
 ## Install
+
+APM (one dependency containing all Cowork skills):
+
+```bash
+apm install petterip/cowork --target agent-skills,claude,codex,copilot
+```
+
+In another APM package, declare `petterip/cowork` once instead of declaring
+each `petterip/cowork/skills/*` path. APM locks the repository revision and
+lists one `cowork` package while projecting `cowork-setup`, `cowork-plan`, and
+the other skills to the selected runtimes. The skills locate their shared
+runtime from the installed package under `apm_modules`.
 
 Claude Code:
 
@@ -181,6 +194,7 @@ tests/test_claude_plugin.sh
 tests/test_router.sh
 tests/test_install.sh
 tests/test_resolve_model.sh
+python3 tests/test_cowork_cli.py
 python3 tests/test_build_workflow.py
 python3 tests/test_peer_work.py
 python3 tests/test_peer_review.py
@@ -196,7 +210,7 @@ skills/codex-claude-rally/scripts/verify-environment.sh
 
 The Claude subscription check blocks known API/provider authentication and
 requires a first-party subscription login. Claude Code cannot expose whether
-optional account-level usage credits are enabled. Gemini and Copilot are
+optional account-level usage credits are enabled. Anti-Gravity and Copilot are
 optional until you ask for those peers.
 
 ## License

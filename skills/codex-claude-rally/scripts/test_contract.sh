@@ -4,6 +4,7 @@ set -euo pipefail
 skill_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 verifier="$skill_dir/scripts/verify-environment.sh"
 rallyctl="$skill_dir/scripts/rallyctl.sh"
+root_resolver="$skill_dir/scripts/resolve-cowork-root.sh"
 
 fail() {
   printf 'Rally contract test failed: %s\n' "$1" >&2
@@ -28,6 +29,8 @@ tool_path=$(dirname "$(command -v rg)")
 test_path="$fake_bin:$tool_path:/usr/bin:/bin"
 
 for script in "$skill_dir"/scripts/*.sh; do bash -n "$script"; done
+[[ "$($root_resolver)" == "$(cd "$skill_dir/../.." && pwd -P)" ]] \
+  || fail 'plugin-layout Cowork root resolution failed.'
 expect_failure env PATH="/usr/bin:/bin" HOME="$fake_home" XDG_STATE_HOME="$fake_state" "$verifier"
 
 cat > "$fake_bin/codex" <<'EOF'
@@ -60,6 +63,16 @@ git -C "$repo" config user.name test
 printf '%s\n' base > "$repo/base.txt"
 git -C "$repo" add base.txt
 git -C "$repo" commit -qm base
+projected_resolver="$repo/.agents/skills/codex-claude-rally/scripts/resolve-cowork-root.sh"
+module_root="$repo/apm_modules/petterip/cowork"
+mkdir -p "$(dirname "$projected_resolver")" "$module_root/scripts"
+cp "$root_resolver" "$projected_resolver"
+printf '%s\n' '#!/usr/bin/env bash' > "$module_root/scripts/cowork"
+chmod +x "$projected_resolver" "$module_root/scripts/cowork"
+printf '%s\n' 'name: cowork' > "$module_root/apm.yml"
+module_root=$(cd "$module_root" && pwd -P)
+[[ "$(cd "$repo" && "$projected_resolver")" == "$module_root" ]] \
+  || fail 'APM-layout Cowork root resolution failed.'
 expect_failure "$skill_dir/scripts/create-rally-job.sh" missing-proof write --repo "$repo" --allowed-path src
 
 write_request() {

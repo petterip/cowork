@@ -1,5 +1,7 @@
 ---
 name: cowork-plan
+metadata:
+  version: 1.6.0
 description: Plan work in Codex and use an independent second model. Use when requirements need clarification, an implementation plan needs challenge, or documentation-aware planning is requested before code.
 ---
 
@@ -12,8 +14,8 @@ read `../codex-claude-rally/SKILL.md` relative to this skill's real base
 directory after following any symlink, and delegate a read-only challenge review
 to Claude. Incorporate sound findings, record rejected findings with reasons,
 and require human approval before implementation. When the user explicitly
-asks for Gemini or Anti-Gravity instead of Claude, delegate the challenge
-review via the Anti-Gravity CLI (`agy`) per `../cowork-gemini/SKILL.md`.
+asks for Anti-Gravity instead of Claude, delegate the challenge
+review via the Anti-Gravity CLI (`agy`) per `../cowork-agy/SKILL.md`.
 When the user explicitly asks for GitHub Copilot, use
 `../cowork-copilot/SKILL.md`.
 

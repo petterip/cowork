@@ -1,0 +1,10 @@
+name: codex-build
+version: 1.6.0
+description: Implement a frozen plan with Codex and independent review.
+author: Petteri Ponsimaa
+license: MIT
+dependencies:
+  apm: []
+  mcp: []
+includes: auto
+scripts: {}

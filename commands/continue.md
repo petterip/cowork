@@ -6,7 +6,7 @@ allowed-tools: Bash(*cowork-route.sh:*), Bash(*invoke-peer-work.sh:*), Bash(*res
 
 First read `$CLAUDE_PLUGIN_ROOT/skills/codex-claude-rally/references/delegation.md`.
 Honor the user’s per-phase provider/model choices through that provider’s skill;
-the Codex route below is the default when unspecified. For Gemini or Copilot,
+the Codex route below is the default when unspecified. For Anti-Gravity or Copilot,
 use the peer work launcher from its skill instead of the Codex transfer router.
 
 For Codex/default only, run `$CLAUDE_PLUGIN_ROOT/scripts/cowork-route.sh transfer "$ARGUMENTS"`. A zero

@@ -1,0 +1,10 @@
+name: codex-claude-rally
+version: 1.6.0
+description: Exchange bounded work between Codex and Claude Code workers.
+author: Petteri Ponsimaa
+license: MIT
+dependencies:
+  apm: []
+  mcp: []
+includes: auto
+scripts: {}

@@ -1,0 +1,10 @@
+name: cowork-review
+version: 1.6.0
+description: Ask an independent second model to review current work.
+author: Petteri Ponsimaa
+license: MIT
+dependencies:
+  apm: []
+  mcp: []
+includes: auto
+scripts: {}

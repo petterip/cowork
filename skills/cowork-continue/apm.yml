@@ -1,0 +1,10 @@
+name: cowork-continue
+version: 1.6.0
+description: Continue current work in a fresh second-model session.
+author: Petteri Ponsimaa
+license: MIT
+dependencies:
+  apm: []
+  mcp: []
+includes: auto
+scripts: {}

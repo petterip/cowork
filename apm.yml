@@ -1,0 +1,24 @@
+name: cowork
+version: 1.6.0
+description: Plan, build, review, and continue work across Claude, Codex, Anti-Gravity, and GitHub Copilot.
+author: Petteri Ponsimaa
+license: MIT
+
+targets:
+  - agent-skills
+  - claude
+  - codex
+  - copilot
+
+dependencies:
+  apm: []
+  mcp: []
+
+includes: auto
+devDependencies:
+  # APM gives an eligible apm.yml precedence over the portable plugin.json.
+  # This local development edge selects the multi-skill bundle layout without
+  # adding transitive packages for consumers.
+  apm:
+    - ./skills/cowork
+scripts: {}

@@ -8,8 +8,45 @@ fail() {
 
 [[ $# -ge 1 ]] || fail 'usage: cowork-route.sh <review|adversarial-review|transfer|status> [arguments]'
 action=$1
-arguments=${2:-}
+shift
+arguments=$*
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+split_arguments() {
+  local input=$1 char quote='' token='' escaped=0 started=0 index
+  words=()
+  for (( index = 0; index < ${#input}; index++ )); do
+    char=${input:index:1}
+    if (( escaped )); then
+      token+=$char
+      escaped=0
+      started=1
+      continue
+    fi
+    if [[ "$char" == $'\\' ]]; then
+      escaped=1
+      started=1
+      continue
+    fi
+    if [[ -n "$quote" ]]; then
+      if [[ "$char" == "$quote" ]]; then quote=''; else token+=$char; fi
+      started=1
+      continue
+    fi
+    if [[ "$char" == '"' || "$char" == "'" ]]; then
+      quote=$char
+      started=1
+    elif [[ "$char" == ' ' || "$char" == $'\t' ]]; then
+      if (( started )); then words+=("$token"); token=''; started=0; fi
+    else
+      token+=$char
+      started=1
+    fi
+  done
+  (( !escaped )) || fail 'arguments end with an incomplete escape.'
+  [[ -z "$quote" ]] || fail 'arguments contain an unmatched quote.'
+  if (( started )); then words+=("$token"); fi
+}
 
 resolve_official_runtime() {
   local root candidate
@@ -30,22 +67,33 @@ resolve_official_runtime() {
 runtime=$(resolve_official_runtime || true)
 case "$action" in
   review|adversarial-review)
-    read -r -a words <<<"$arguments"
+    split_arguments "$arguments"
     review_args=()
     focus=()
-    gemini_requested=0
+    agy_requested=0
     copilot_requested=0
     codex_requested=0
+    claude_requested=0
+    explicit_peer=''
     explicit_model=''
-    model_family=''
+    model_query=''
     explicit_effort=''
     index=0
     while (( index < ${#words[@]} )); do
       case "${words[$index]}" in
         --wait|--background) ((index += 1)) ;;
-        --gemini) gemini_requested=1; ((index += 1)) ;;
         --copilot) copilot_requested=1; ((index += 1)) ;;
         --codex) codex_requested=1; ((index += 1)) ;;
+        --peer=*)
+          explicit_peer=${words[$index]#--peer=}
+          [[ -n "$explicit_peer" ]] || fail '--peer requires a name.'
+          ((index += 1))
+          ;;
+        --peer)
+          (( index + 1 < ${#words[@]} )) || fail '--peer requires a name.'
+          explicit_peer=${words[$((index + 1))]}
+          ((index += 2))
+          ;;
         --model=*)
           explicit_model=${words[$index]#--model=}
           [[ -n "$explicit_model" ]] || fail '--model requires a slug.'
@@ -56,14 +104,14 @@ case "$action" in
           explicit_model=${words[$((index + 1))]}
           ((index += 2))
           ;;
-        --model-family=*)
-          model_family=${words[$index]#--model-family=}
-          [[ -n "$model_family" ]] || fail '--model-family requires a name.'
+        --model-name=*|--model-family=*)
+          model_query=${words[$index]#*=}
+          [[ -n "$model_query" ]] || fail '--model-name requires a value.'
           ((index += 1))
           ;;
-        --model-family)
-          (( index + 1 < ${#words[@]} )) || fail '--model-family requires a name.'
-          model_family=${words[$((index + 1))]}
+        --model-name|--model-family)
+          (( index + 1 < ${#words[@]} )) || fail '--model-name requires a value.'
+          model_query=${words[$((index + 1))]}
           ((index += 2))
           ;;
         --effort=*)
@@ -89,29 +137,35 @@ case "$action" in
     done
     [[ -z "$explicit_effort" || "$explicit_effort" =~ ^[[:alnum:]][[:alnum:]_.-]*$ ]] ||
       fail '--effort must be a CLI-safe level name.'
-    if (( codex_requested && (gemini_requested || copilot_requested) )); then
-      fail '--codex cannot be combined with --gemini or --copilot.'
+    if [[ -n "$explicit_peer" ]]; then
+      (( !codex_requested && !agy_requested && !copilot_requested )) ||
+        fail '--peer cannot be combined with a legacy peer flag.'
+      case "$explicit_peer" in
+        agy) agy_requested=1 ;;
+        claude) claude_requested=1 ;;
+        codex) codex_requested=1 ;;
+        copilot) copilot_requested=1 ;;
+        *) fail "unsupported peer: $explicit_peer" ;;
+      esac
     fi
-    if (( gemini_requested && copilot_requested )); then
-      fail '--gemini cannot be combined with --copilot.'
+    if (( codex_requested && (agy_requested || copilot_requested || claude_requested) )); then
+      fail '--codex cannot be combined with another peer.'
     fi
-    [[ -z "$explicit_model" || -z "$model_family" ]] ||
-      fail 'pass either --model or --model-family, not both.'
-    if [[ -n "$explicit_model$model_family$explicit_effort" ]] && (( !gemini_requested && !copilot_requested && !codex_requested )); then
-      fail 'pass --codex, --gemini, or --copilot with --model/--effort; model settings do not select a peer.'
+    if (( agy_requested + copilot_requested + claude_requested > 1 )); then
+      fail 'select only one peer.'
     fi
-    if (( gemini_requested || copilot_requested )); then
+    [[ -z "$explicit_model" || -z "$model_query" ]] ||
+      fail 'pass either --model or --model-name, not both.'
+    if [[ -n "$explicit_model$model_query$explicit_effort" ]] && (( !agy_requested && !copilot_requested && !codex_requested && !claude_requested )); then
+      fail 'pass --peer with --model/--effort; model settings do not select a peer.'
+    fi
+    if (( agy_requested || copilot_requested || claude_requested )); then
       via=agy
-      family=gemini-flash
-      effort=${explicit_effort:-medium}
+      effort=$explicit_effort
       (( copilot_requested )) && via=copilot
-      if (( copilot_requested && !gemini_requested )); then
-        family=auto
-      fi
-      if [[ -n "$model_family" ]]; then
-        (( copilot_requested && !gemini_requested )) ||
-          fail '--model-family is supported only for an explicitly selected Copilot or Codex peer.'
-        explicit_model=$("$script_dir/resolve-model.sh" --family named --via copilot --query "$model_family")
+      (( claude_requested )) && via=claude
+      if [[ -n "$model_query" ]]; then
+        explicit_model=$("$script_dir/resolve-model.sh" --via "$via" --query "$model_query")
       fi
       [[ "$action" == adversarial-review && -z "$explicit_effort" ]] && effort=high
       prompt='Review the current code or diff as an independent, read-only reviewer.'
@@ -177,13 +231,14 @@ case "$action" in
       model=${explicit_model:-auto}
       # Not `exec`: the trap that removes the prompt file has to run.
       status=0
-      "$script_dir/invoke-peer-review.sh" "$via" "$model" \
-        --family "$family" --effort "$effort" --prompt-file "$prompt_file" || status=$?
+      peer_args=("$via" "$model" --prompt-file "$prompt_file")
+      [[ -z "$effort" ]] || peer_args+=(--effort "$effort")
+      "$script_dir/invoke-peer-review.sh" "${peer_args[@]}" || status=$?
       exit "$status"
     fi
     if (( codex_requested )); then
-      if [[ -n "$model_family" ]]; then
-        explicit_model=$("$script_dir/resolve-model.sh" --family named --via codex --query "$model_family")
+      if [[ -n "$model_query" ]]; then
+        explicit_model=$("$script_dir/resolve-model.sh" --via codex --query "$model_query")
       fi
       codex_cmd=(codex)
       [[ -z "$explicit_model" ]] || codex_cmd+=(-m "$explicit_model")
@@ -203,7 +258,7 @@ case "$action" in
     [[ "$action" == review ]] || fail 'adversarial review requires codex@openai-codex.'
     if [[ ${#focus[@]} -gt 0 ]]; then
       if [[ ${#review_args[@]} -gt 0 ]]; then
-        fail 'focused review with --base requires the official Codex plugin, or pass --gemini/--copilot; drop --base to use the local CLI.'
+        fail 'focused review with --base requires the official Codex plugin, or pass --peer; drop --base to use the local CLI.'
       fi
       exec codex review "${focus[*]}"
     fi

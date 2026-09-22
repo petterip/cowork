@@ -1,0 +1,10 @@
+name: cowork-setup
+version: 1.6.0
+description: Discover and cache Cowork tools, authentication, and model catalogs.
+author: Petteri Ponsimaa
+license: MIT
+dependencies:
+  apm: []
+  mcp: []
+includes: auto
+scripts: {}

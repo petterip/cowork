@@ -4,14 +4,14 @@
     "name": "Petteri Ponsimaa"
   },
   "metadata": {
-    "description": "Durable cross-model collaboration workflows for Claude, Codex, Gemini, and GitHub Copilot.",
-    "version": "1.5.0"
+    "description": "Durable cross-model collaboration workflows for Claude, Codex, Anti-Gravity, and GitHub Copilot.",
+    "version": "1.6.0"
   },
   "plugins": [
     {
       "name": "cowork",
-      "description": "Plan, review, build, and hand off work across Claude, Codex, Gemini, and GitHub Copilot.",
-      "version": "1.5.0",
+      "description": "Plan, review, build, and hand off work across Claude, Codex, Anti-Gravity, and GitHub Copilot.",
+      "version": "1.6.0",
       "author": {
         "name": "Petteri Ponsimaa"
       },

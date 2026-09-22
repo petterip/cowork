@@ -1,5 +1,7 @@
 ---
 name: cowork-build
+metadata:
+  version: 1.6.0
 description: Build a frozen plan by delegating implementation to a second model and independently verifying the result. Use for bounded multi-file implementation where one model writes and another reviews.
 ---
 
@@ -17,6 +19,6 @@ base directory after following any symlink, and create a write job in an
 isolated Claude worktree. Codex must inspect the complete scoped diff and run
 proof independently before asking the user whether to apply or commit it. At
 hand-back, never overwrite local work: apply-check against the source checkout
-and surface an overlap for user resolution. For an explicitly selected Gemini or Copilot builder, follow
-`../cowork-gemini/SKILL.md` or `../cowork-copilot/SKILL.md` and use their shared
+and surface an overlap for user resolution. For an explicitly selected Anti-Gravity or Copilot builder, follow
+`../cowork-agy/SKILL.md` or `../cowork-copilot/SKILL.md` and use their shared
 peer work launcher in the same isolated worktree, with independent proof.

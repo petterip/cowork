@@ -1,4 +1,4 @@
-# Gemini and Copilot build / continuation
+# Anti-Gravity and Copilot build / continuation
 
 Use `scripts/invoke-peer-work.sh` from the plugin root for write work. Resolve
 that root from the invoking skill's real directory. Reviews continue to use
@@ -34,11 +34,9 @@ path for every launch and correction; failed-run diagnostics remain beside it.
   --repo "$WORKER_REPO" --prompt-file "$HANDOFF_REQUEST" --output "$HANDOFF_REPORT"
 ```
 
-For Gemini through Copilot, use `copilot auto --family gemini-flash`. An exact
-model argument wins over `COWORK_MODEL`; an explicit Gemini family resolves
-that family instead of an ambient model. For any other requested Copilot family,
-resolve it with `scripts/resolve-model.sh --family named --via copilot --query
-"<requested family>"` and pass the returned slug. Forward a requested effort
+For a user-supplied model, resolve it with `scripts/cowork resolve --peer
+<peer> --model "<requested name>" --json` and pass the returned id. An exact
+model argument wins over `COWORK_MODEL`. Forward a requested effort
 with `--effort <level>`; the selected peer validates support. Otherwise keep the
 configured default.
 Full access is inherited through `detect-full-access.sh`; without it the peer

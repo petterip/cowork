@@ -1,0 +1,10 @@
+name: cowork-plan
+version: 1.6.0
+description: Produce an implementation plan challenged by an independent model.
+author: Petteri Ponsimaa
+license: MIT
+dependencies:
+  apm: []
+  mcp: []
+includes: auto
+scripts: {}

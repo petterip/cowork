@@ -1,0 +1,346 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+fail() {
+  printf 'Cowork failed: %s\n' "$1" >&2
+  exit 1
+}
+
+usage() {
+  cat <<'USAGE'
+usage: cowork <setup|resolve|doctor> [options]
+
+  cowork setup [--refresh] [--check] [--json]
+      Discover installed peers and cache their capabilities and model catalogs.
+
+  cowork resolve [--peer <name>] [--model <name-or-id>] [--refresh] [--json]
+      Resolve an opaque user-supplied model name against the discovered peers.
+      An explicit peer always wins. Ambiguous matches fail instead of guessing.
+
+  cowork doctor [--json]
+      Validate the cached setup without changing it.
+USAGE
+}
+
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+repo_root=$(cd "$script_dir/.." && pwd)
+state_root="${XDG_STATE_HOME:-$HOME/.local/state}/cowork"
+manifest="$state_root/capabilities.json"
+
+command_version() {
+  local peer=$1
+  "$peer" --version 2>&1 | head -n1
+}
+
+catalog_for() {
+  local peer=$1 output=''
+  case "$peer" in
+    copilot)
+      output=$(copilot help config 2>/dev/null || true)
+      awk '
+        /^  `model`:/ { in_models = 1; next }
+        in_models && /^    - "/ {
+          value = $0
+          sub(/^    - "/, "", value)
+          sub(/".*$/, "", value)
+          print value
+          found = 1
+          next
+        }
+        in_models && found { exit }
+      ' <<<"$output"
+      ;;
+    codex)
+      output=$(codex debug models 2>/dev/null || true)
+      if [[ -n "$output" ]]; then
+        jq -r '.. | objects | (.slug? // .id? // empty)' <<<"$output" 2>/dev/null | sort -u
+      fi
+      ;;
+    agy)
+      output=$(agy models 2>/dev/null || true)
+      if [[ -n "$output" ]]; then
+        awk '{print $1}' <<<"$output" | sed '/^$/d' | sort -u
+      fi
+      ;;
+    claude)
+      # Claude exposes a provider default and accepts user-supplied aliases, but
+      # does not publish a machine-readable versioned catalog.
+      ;;
+    *) fail "unsupported peer: $peer" ;;
+  esac
+}
+
+auth_state_for() {
+  local peer=$1 output=''
+  case "$peer" in
+    claude)
+      output=$(claude auth status --json 2>/dev/null || claude auth status 2>/dev/null || true)
+      if jq -e '.loggedIn == true' >/dev/null 2>&1 <<<"$output"; then
+        printf true
+      elif jq -e '.loggedIn == false' >/dev/null 2>&1 <<<"$output"; then
+        printf false
+      else
+        printf null
+      fi
+      ;;
+    agy)
+      if agy models >/dev/null 2>&1; then printf true; else printf false; fi
+      ;;
+    *) printf null ;;
+  esac
+}
+
+effort_option_for() {
+  local peer=$1 help=''
+  help=$("$peer" --help 2>/dev/null || true)
+  if grep -q -- '--reasoning-effort' <<<"$help"; then
+    printf '%s' '--reasoning-effort'
+  elif grep -q -- '--effort' <<<"$help"; then
+    printf '%s' '--effort'
+  fi
+}
+
+generate_manifest() {
+  command -v jq >/dev/null 2>&1 || fail 'jq is required for setup.'
+  mkdir -p "$state_root"
+  local plugin_version generated peers peer path version models models_json auth effort source available installation
+  plugin_version=$(jq -r '.version // "unknown"' "$repo_root/plugin.json")
+  generated=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  peers='{}'
+
+  for peer in claude codex agy copilot; do
+    path=$(command -v "$peer" 2>/dev/null || true)
+    [[ -n "$path" ]] || continue
+    available=true
+    if ! version=$(command_version "$peer"); then
+      available=false
+      version=unusable
+    fi
+    models=''
+    if [[ "$available" == true ]]; then
+      models=$(catalog_for "$peer")
+    fi
+    models_json=$(printf '%s\n' "$models" | jq -Rsc 'split("\n") | map(select(length > 0)) | unique')
+    auth=$(auth_state_for "$peer")
+    effort=$(effort_option_for "$peer")
+    source=none
+    [[ -n "$models" ]] && source=live
+    peers=$(jq \
+      --arg peer "$peer" \
+      --arg path "$path" \
+      --arg version "$version" \
+      --arg source "$source" \
+      --arg effort "$effort" \
+      --argjson models "$models_json" \
+      --argjson authenticated "$auth" \
+      --argjson available "$available" \
+      '. + {($peer): {
+        available: $available,
+        executable: $path,
+        version: $version,
+        authenticated: $authenticated,
+        catalogSource: $source,
+        models: $models,
+        reasoningEffortOption: (if $effort == "" then null else $effort end)
+      }}' <<<"$peers")
+  done
+
+  installation=$(jq -n \
+    --argjson codex "$([[ -f "${CODEX_HOME:-$HOME/.codex}/skills/cowork/SKILL.md" ]] && printf true || printf false)" \
+    --argjson copilot "$([[ -f "${COPILOT_SKILLS_DIR:-$HOME/.copilot}/skills/cowork/SKILL.md" ]] && printf true || printf false)" \
+    --argjson agents "$([[ -f "${DSH_AGENTS_HOME:-$HOME/.agents}/skills/cowork/SKILL.md" ]] && printf true || printf false)" \
+    --argjson opencode "$([[ -f "${OPENCODE_CONFIG_DIR:-$HOME/.config/opencode}/skills/cowork/SKILL.md" ]] && printf true || printf false)" \
+    '{codex: $codex, copilot: $copilot, agents: $agents, opencode: $opencode}')
+
+  local temporary
+  temporary=$(mktemp "$state_root/capabilities.XXXXXX")
+  jq -n \
+    --argjson schemaVersion 1 \
+    --arg coworkVersion "$plugin_version" \
+    --arg generatedAt "$generated" \
+    --argjson peers "$peers" \
+    --argjson installation "$installation" \
+    '{schemaVersion: $schemaVersion, coworkVersion: $coworkVersion, generatedAt: $generatedAt,
+      installation: $installation, peers: $peers}' \
+    >"$temporary"
+  mv "$temporary" "$manifest"
+}
+
+manifest_is_current() {
+  [[ -r "$manifest" ]] || return 1
+  jq -e '.schemaVersion == 1 and (.peers | type == "object")' "$manifest" >/dev/null 2>&1 || return 1
+  local expected_version cached_version peer cached_path cached_version_value current_path current_version
+  local cached_peers current_peers cached_installation current_installation
+  expected_version=$(jq -r '.version // "unknown"' "$repo_root/plugin.json")
+  cached_version=$(jq -r '.coworkVersion // empty' "$manifest")
+  [[ "$cached_version" == "$expected_version" ]] || return 1
+  cached_installation=$(jq -c '.installation // {}' "$manifest")
+  current_installation=$(jq -nc \
+    --argjson codex "$([[ -f "${CODEX_HOME:-$HOME/.codex}/skills/cowork/SKILL.md" ]] && printf true || printf false)" \
+    --argjson copilot "$([[ -f "${COPILOT_SKILLS_DIR:-$HOME/.copilot}/skills/cowork/SKILL.md" ]] && printf true || printf false)" \
+    --argjson agents "$([[ -f "${DSH_AGENTS_HOME:-$HOME/.agents}/skills/cowork/SKILL.md" ]] && printf true || printf false)" \
+    --argjson opencode "$([[ -f "${OPENCODE_CONFIG_DIR:-$HOME/.config/opencode}/skills/cowork/SKILL.md" ]] && printf true || printf false)" \
+    '{codex: $codex, copilot: $copilot, agents: $agents, opencode: $opencode}')
+  [[ "$cached_installation" == "$current_installation" ]] || return 1
+  cached_peers=$(jq -r '.peers | keys[]' "$manifest")
+  current_peers=''
+  for peer in agy claude codex copilot; do
+    if command -v "$peer" >/dev/null 2>&1; then current_peers+="${peer}"$'\n'; fi
+  done
+  [[ "$(printf '%s' "$cached_peers" | sort)" == "$(printf '%s' "$current_peers" | sed '/^$/d' | sort)" ]] || return 1
+  while IFS= read -r peer; do
+    cached_path=$(jq -r --arg peer "$peer" '.peers[$peer].executable' "$manifest")
+    cached_version_value=$(jq -r --arg peer "$peer" '.peers[$peer].version' "$manifest")
+    current_path=$(command -v "$peer" 2>/dev/null || true)
+    [[ "$current_path" == "$cached_path" ]] || return 1
+    if ! current_version=$(command_version "$peer" 2>/dev/null); then
+      current_version=unusable
+    fi
+    [[ "$current_version" == "$cached_version_value" ]] || return 1
+  done < <(jq -r '.peers | keys[]' "$manifest")
+}
+
+print_setup_human() {
+  printf 'Cowork setup: %s\n' "$manifest"
+  jq -r '.installation | to_entries[] | "skill \(.key): \(if .value then "installed" else "missing" end)"' "$manifest"
+  jq -r '.peers | to_entries[] |
+    "\(.key): available=\(.value.available); \(.value.version); models=\(.value.models | length); auth=\(.value.authenticated // "unknown")"' "$manifest"
+}
+
+setup_command() {
+  local refresh=0 check=0 json=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --refresh) refresh=1; shift ;;
+      --check) check=1; shift ;;
+      --json) json=1; shift ;;
+      -h|--help) usage; exit 0 ;;
+      *) fail "unknown setup option: $1" ;;
+    esac
+  done
+
+  if (( check )); then
+    manifest_is_current || fail 'setup is missing or stale; run: cowork setup --refresh'
+  elif (( refresh )) || ! manifest_is_current; then
+    generate_manifest
+  fi
+
+  if (( json )); then cat "$manifest"; else print_setup_human; fi
+}
+
+normalize() {
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]'
+}
+
+matches_for_peer() {
+  local peer=$1 query=$2 model normalized_query normalized_model lower_query
+  local -a exact=() token_matches=() tokens=()
+  normalized_query=$(normalize "$query")
+  lower_query=$(printf '%s' "$query" | tr '[:upper:]' '[:lower:]')
+  while IFS= read -r model; do
+    [[ -n "$model" ]] || continue
+    normalized_model=$(normalize "$model")
+    lower_model=$(printf '%s' "$model" | tr '[:upper:]' '[:lower:]')
+    if [[ "$lower_model" == "$lower_query" || "$normalized_model" == "$normalized_query" ]]; then
+      exact+=("$model")
+    fi
+  done < <(jq -r --arg peer "$peer" '.peers[$peer].models[]?' "$manifest")
+  if (( ${#exact[@]} > 0 )); then
+    printf '%s\n' "${exact[@]}"
+    return
+  fi
+
+  while IFS= read -r token; do
+    [[ -n "$token" ]] && tokens+=("$token")
+  done < <(printf '%s' "$query" | tr '[:upper:]' '[:lower:]' | grep -Eo '[[:alnum:]]+' || true)
+  while IFS= read -r model; do
+    [[ -n "$model" ]] || continue
+    local all=1 token lower_model
+    lower_model=$(printf '%s' "$model" | tr '[:upper:]' '[:lower:]')
+    for token in "${tokens[@]}"; do
+      [[ "$lower_model" == *"$token"* ]] || { all=0; break; }
+    done
+    (( all )) && token_matches+=("$model")
+  done < <(jq -r --arg peer "$peer" '.peers[$peer].models[]?' "$manifest")
+  if (( ${#token_matches[@]} > 0 )); then
+    printf '%s\n' "${token_matches[@]}"
+  fi
+}
+
+resolve_command() {
+  local peer='' model='' json=0 refresh=0 resolved_peer='' resolved_model=''
+  local candidate catalog_count
+  local -a candidates=() matches=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --peer) [[ $# -ge 2 ]] || fail '--peer requires a value.'; peer=$2; shift 2 ;;
+      --peer=*) peer=${1#--peer=}; shift ;;
+      --model) [[ $# -ge 2 ]] || fail '--model requires a value.'; model=$2; shift 2 ;;
+      --model=*) model=${1#--model=}; shift ;;
+      --refresh) refresh=1; shift ;;
+      --json) json=1; shift ;;
+      -h|--help) usage; exit 0 ;;
+      *) fail "unknown resolve option: $1" ;;
+    esac
+  done
+
+  if (( refresh )) || ! manifest_is_current; then generate_manifest; fi
+  if [[ -z "$peer" && -n "${COWORK_DEFAULT_PEER-}" ]]; then peer=$COWORK_DEFAULT_PEER; fi
+
+  if [[ -n "$peer" ]]; then
+    jq -e --arg peer "$peer" '.peers[$peer].available == true' "$manifest" >/dev/null ||
+      fail "peer '$peer' is unavailable; run: cowork setup --refresh"
+    resolved_peer=$peer
+    if [[ -n "$model" ]]; then
+      candidates=()
+      while IFS= read -r candidate; do
+        [[ -n "$candidate" ]] && candidates+=("$candidate")
+      done < <(matches_for_peer "$peer" "$model" | sed '/^$/d')
+      catalog_count=$(jq -r --arg peer "$peer" '.peers[$peer].models | length' "$manifest")
+      if (( ${#candidates[@]} == 1 )); then
+        resolved_model=${candidates[0]}
+      elif (( ${#candidates[@]} > 1 )); then
+        fail "model '$model' is ambiguous for peer '$peer': ${candidates[*]}"
+      elif (( catalog_count == 0 )); then
+        resolved_model=$model
+      else
+        fail "peer '$peer' has no model matching '$model'; refresh setup or pass an exact id."
+      fi
+    fi
+  else
+    [[ -n "$model" ]] || fail 'pass --peer, set COWORK_DEFAULT_PEER, or supply a model that identifies one peer.'
+    local candidate_peer candidate_model
+    while IFS= read -r candidate_peer; do
+      while IFS= read -r candidate_model; do
+        [[ -n "$candidate_model" ]] && matches+=("$candidate_peer:$candidate_model")
+      done < <(matches_for_peer "$candidate_peer" "$model" | sed '/^$/d')
+    done < <(jq -r '.peers | to_entries[] | select(.value.available == true) | .key' "$manifest")
+    if (( ${#matches[@]} == 1 )); then
+      resolved_peer=${matches[0]%%:*}
+      resolved_model=${matches[0]#*:}
+    elif (( ${#matches[@]} == 0 )); then
+      fail "no discovered peer has a model matching '$model'; specify --peer or refresh setup."
+    else
+      fail "model '$model' matches multiple peers or ids: ${matches[*]}; specify --peer and an exact id."
+    fi
+  fi
+
+  if (( json )); then
+    jq -n --arg peer "$resolved_peer" --arg model "$resolved_model" \
+      '{peer: $peer, model: (if $model == "" then null else $model end)}'
+  else
+    printf 'peer=%s\n' "$resolved_peer"
+    [[ -z "$resolved_model" ]] || printf 'model=%s\n' "$resolved_model"
+  fi
+}
+
+[[ $# -ge 1 ]] || { usage; exit 1; }
+subcommand=$1
+shift
+case "$subcommand" in
+  setup) setup_command "$@" ;;
+  resolve) resolve_command "$@" ;;
+  doctor) setup_command --check "$@" ;;
+  -h|--help|help) usage ;;
+  *) fail "unknown subcommand: $subcommand" ;;
+esac

@@ -1,0 +1,10 @@
+name: grill-me-codex
+version: 1.6.0
+description: Resolve requirements and challenge the resulting plan with Codex.
+author: Petteri Ponsimaa
+license: MIT
+dependencies:
+  apm: []
+  mcp: []
+includes: auto
+scripts: {}

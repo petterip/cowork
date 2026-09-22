@@ -9,7 +9,7 @@ HOME="$tmp/home" CODEX_HOME="$tmp/custom-codex" \
   "$repo_root/install.sh" --agent codex >/dev/null
 
 [[ "$(readlink -f "$tmp/custom-codex/cowork")" == "$repo_root" ]]
-for skill in cowork cowork-plan cowork-build cowork-review cowork-continue cowork-status cowork-setup cowork-gemini cowork-copilot; do
+for skill in cowork cowork-plan cowork-build cowork-review cowork-continue cowork-status cowork-setup cowork-agy cowork-copilot; do
   link="$tmp/custom-codex/skills/$skill"
   [[ -L "$link" ]]
   [[ "$(readlink -f "$link")" == "$repo_root/skills/$skill" ]]
@@ -19,7 +19,7 @@ done
 HOME="$tmp/home" CODEX_HOME="$tmp/custom-codex" \
   "$repo_root/install.sh" --agent opencode >/dev/null
 
-for skill in cowork cowork-plan cowork-build cowork-review cowork-continue cowork-status cowork-setup cowork-gemini cowork-copilot; do
+for skill in cowork cowork-plan cowork-build cowork-review cowork-continue cowork-status cowork-setup cowork-agy cowork-copilot; do
   link="$tmp/home/.config/opencode/skills/$skill"
   [[ -L "$link" ]]
   [[ "$(readlink -f "$link")" == "$repo_root/skills/$skill" ]]
@@ -28,7 +28,7 @@ done
 HOME="$tmp/home" CODEX_HOME="$tmp/custom-codex" \
   "$repo_root/install.sh" --agent copilot >/dev/null
 
-for skill in cowork cowork-plan cowork-build cowork-review cowork-continue cowork-status cowork-setup cowork-gemini cowork-copilot; do
+for skill in cowork cowork-plan cowork-build cowork-review cowork-continue cowork-status cowork-setup cowork-agy cowork-copilot; do
   link="$tmp/home/.copilot/skills/$skill"
   [[ -L "$link" ]]
   [[ "$(readlink -f "$link")" == "$repo_root/skills/$skill" ]]
@@ -80,7 +80,7 @@ fi
 HOME="$stale_home" CODEX_HOME="$stale_codex" \
   "$repo_root/install.sh" --repair --agent codex >/dev/null
 [[ "$(readlink -f "$stale_codex/skills/cowork-plan")" == "$repo_root/skills/cowork-plan" ]]
-for skill in cowork cowork-plan cowork-build cowork-review cowork-continue cowork-status cowork-setup cowork-gemini cowork-copilot; do
+for skill in cowork cowork-plan cowork-build cowork-review cowork-continue cowork-status cowork-setup cowork-agy cowork-copilot; do
   link="$stale_codex/skills/$skill"
   [[ "$(readlink -f "$link")" == "$repo_root/skills/$skill" ]]
 done
@@ -96,7 +96,7 @@ ln -s "$tmp/old/cowork-claude-codex/skills/claude-handoff" "$tmp/agents/skills/c
 HOME="$stale_home" DSH_AGENTS_HOME="$tmp/agents" \
   "$repo_root/install.sh" --agent dsh >/dev/null
 [[ ! -L "$tmp/agents/skills/claude-handoff" ]]
-for skill in cowork cowork-plan cowork-build cowork-review cowork-continue cowork-status cowork-setup cowork-gemini cowork-copilot; do
+for skill in cowork cowork-plan cowork-build cowork-review cowork-continue cowork-status cowork-setup cowork-agy cowork-copilot; do
   link="$tmp/agents/skills/$skill"
   [[ -L "$link" ]]
   [[ "$(readlink -f "$link")" == "$repo_root/skills/$skill" ]]

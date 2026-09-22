@@ -1,57 +1,35 @@
 ---
 name: cowork-copilot
-description: Delegate cowork work to GitHub Copilot CLI. Use ONLY when the user explicitly asks for Copilot; otherwise cowork pairs Codex with Claude.
+metadata:
+  version: 1.6.0
+description: Delegate cowork work to GitHub Copilot CLI. Use only when the user explicitly asks for Copilot; otherwise preserve the default pairing.
 ---
 
-# GitHub Copilot CLI
+# GitHub Copilot peer
 
-Follow [the shared delegation contract](../codex-claude-rally/references/delegation.md) from this skill’s resolved directory (follow symlinks). Named agents are defaults; explicit choices use the selected provider’s workflow.
+Use the standalone `copilot` CLI, not the older `gh copilot` extension. Resolve
+`RALLY_SCRIPTS` to `../codex-claude-rally/scripts` from this skill's real
+directory, then run
+`COWORK_PLUGIN_ROOT=$("$RALLY_SCRIPTS/resolve-cowork-root.sh")`.
 
-Use the GitHub Copilot CLI (`copilot` from `@github/copilot`) as a peer only
-when the user explicitly asks for Copilot. The older `gh copilot` extension
-is a different tool and is not this path.
+For reviews, use the shared router rather than constructing a command:
 
-## Invocation
+```bash
+"$COWORK_PLUGIN_ROOT/scripts/cowork" setup
+"$COWORK_PLUGIN_ROOT/scripts/cowork-route.sh" review \
+  '--peer copilot [--model <exact-id>|--model-name <user text>] [--effort <level>] [--base <ref>] [focus]'
+```
 
-Resolve `COWORK_PLUGIN_ROOT` to the plugin root two directories above this
-skill's real base directory after following any symlink.
+Rules:
 
-- Non-interactive reviews use `copilot -p` with `-s` and `--no-ask-user`.
-  Allow only `git status`, `git diff`, `git log`, and `git show`. Do not pass
-  `--allow-all`, `--yolo`, or `shell(git:*)`.
-- For `--base <ref>`, send only the tracked diff from that base. Include
-  untracked files only when reviewing the working tree without `--base`.
-- Disable Git text conversion when assembling the prompt so generated Office
-  and other binary artifacts are summarized instead of expanded into it.
-- An explicitly named Copilot peer stays the peer even when the model name is
-  Opus, Luna, or another family also available elsewhere. Resolve the requested
-  name with `cowork-route.sh --copilot --model-family <name>`, which selects the
-  newest match from the `model` list in `copilot help config` and passes that exact id as
-  `--model`. Do not redirect to Claude or Codex by family.
-- Never hard-code a model version. For Copilot's own picker, resolve with
-  `$COWORK_PLUGIN_ROOT/scripts/resolve-model.sh --family auto --via copilot`,
-  or simply pass `auto` to `scripts/invoke-peer-review.sh`, which resolves it
-  (prints `auto`). For Gemini Flash through Copilot, use
-  `--family gemini-flash --via copilot`. `COWORK_MODEL` or `--model` supplies
-  an exact slug when the user named one.
-- Live listing is best-effort: read the `model` list from `copilot help config`,
-  then try the legacy JSON picker and `copilot --help`. If none yields ids, stop
-  and ask for `--model`. Do
-  not invent a slug.
-- Pass requested reasoning effort through `scripts/invoke-peer-review.sh
-  --effort <level>`. The launcher enforces it with Copilot's
-  `--reasoning-effort`/`--effort` option; never log an effort that was not sent.
-- After a read-only run, verify `git status --porcelain` is unchanged.
+- Copilot remains the peer regardless of the requested model.
+- Supplied model text resolves from setup's live catalog. Without a model, use
+  Copilot's native default.
+- Pass effort only when the user requested it; setup records the supported
+  option name.
+- Reviews are read-only. Never use `--allow-all`, `--yolo`, or broad Git tool
+  permissions. The router supplies the bounded diff and allowed commands.
+- Verify the report and confirm the working tree is unchanged.
 
-## Build and continue
-
-Follow [the peer work workflow](../codex-claude-rally/references/peer-work.md)
-and use `scripts/invoke-peer-work.sh` with provider `copilot`. It preserves
-explicit model choices and inherited permissions; reviews retain their own
-read-only launcher.
-
-## Rules
-
-- Reviews and plan challenges are read-only; Copilot must not edit files.
-- The initiating model verifies the diff and proof itself. Copilot's report
-  is advisory input, never acceptance.
+For build or continuation, follow `cowork-build` or `cowork-continue`; those
+workflows call `scripts/invoke-peer-work.sh` with provider `copilot`.

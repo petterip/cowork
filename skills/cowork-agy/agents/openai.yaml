@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cowork: Anti-Gravity"
+  short_description: "Delegate to the Anti-Gravity peer when explicitly asked."
+  default_prompt: "Use Anti-Gravity as the second peer for this cowork step. Resolve user-supplied model text from setup; otherwise use the peer default."

@@ -1,5 +1,7 @@
 ---
 name: grill-me-codex
+metadata:
+  version: 1.6.0
 description: "Two-act collaborative planning: Claude resolves requirements in frontier rounds, then writes PLAN.md; Codex adversarially reviews it read-only until APPROVED or MAX_ROUNDS. Require human sign-off before code. Use through /cowork:plan for high-stakes planning, documentation-aware planning, existing-plan review, or directly when requirements need structured clarification and a second-model review. Do not use for trivial changes or existing-code review."
 ---
 
@@ -74,9 +76,9 @@ Act 1 (collaborative planning) complete — plan locked with the user. MAX_ROUND
 Now hand the locked plan to Codex for adversarial review. Same engine, mechanics verified end-to-end (2026-06-04).
 
 ### Prerequisites (verify once, fast)
-- `codex --version` ≥ 0.130 (older CLIs error on the default `gpt-5.5` model).
+- A recent, usable Codex CLI (`codex --version`).
 - Codex authenticated (prior `codex login`; ChatGPT account is fine). On auth/model error, surface it — don't silently retry.
-- Pin `-m` only when the user requests a model; otherwise use the config default. Pinning `gpt-5.x-codex` variants 400s on ChatGPT-account auth.
+- Pin `-m` only when the user requests a model; otherwise use the configured default.
 - **Echo the selected model before Round 1**: use the requested reviewer model, otherwise the configured default (or "CLI default" if unset). If the user objects, stop before launch.
 
 ### Tunables (read from args, else default)

@@ -1,0 +1,10 @@
+name: codex-review
+version: 1.6.0
+description: Review implementation plans with a read-only Codex critic.
+author: Petteri Ponsimaa
+license: MIT
+dependencies:
+  apm: []
+  mcp: []
+includes: auto
+scripts: {}

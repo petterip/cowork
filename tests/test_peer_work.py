@@ -55,13 +55,16 @@ with tempfile.TemporaryDirectory(prefix="cowork-peer-work-") as temporary:
 import json, os, pathlib, sys
 args = sys.argv[1:]
 if args and args[0] == "models":
-    print("gemini-9.1-flash-medium")
+    print("peer-gamma-3")
     raise SystemExit()
 if args[:2] == ["help", "config"]:
-    print('  `model`: AI model to use:\n    - "gemini-9.2-flash"\n')
+    print('  `model`: AI model to use:\n    - "peer-alpha-2"\n')
     raise SystemExit()
-if args and args[0] == "/model":
-    print('[{"id":"gemini-9.2-flash"}]')
+if args and args[0] == "--version":
+    print("peer-cli 1")
+    raise SystemExit()
+if args and args[0] == "--help":
+    print("  --reasoning-effort <level>")
     raise SystemExit()
 prompt = args[args.index("-p") + 1]
 with open(os.environ["CALL_LOG"], "a", encoding="utf-8") as stream:
@@ -91,6 +94,7 @@ print("completed:" + prompt)
         PATH=f"{fake_bin}:{os.environ['PATH']}",
         CALL_LOG=str(log),
         CODEX_HOME=str(tmp / "codex-home"),
+        XDG_STATE_HOME=str(tmp / "state"),
         RALLY_SCRIPTS=str(ROOT / "skills/codex-claude-rally/scripts"),
     )
 
@@ -103,13 +107,13 @@ print("completed:" + prompt)
         return run(args, cwd=tmp, env=env, succeeds=succeeds)
 
     # Build launches in the registered worktree, preserves the prompt exactly,
-    # resolves auto, and publishes provider output with adjacent diagnostics.
+    # uses the peer default, and publishes provider output with diagnostics.
     first = reports / "build.md"
     invoke("build", "agy", "auto", first, source_repo=source)
     launch = call_log(log)[-1]
-    assert launch["cwd"] == str(worker)
+    assert Path(launch["cwd"]).resolve() == worker.resolve()
     assert launch["prompt"] == prompt.read_text()
-    assert "gemini-9.1-flash-medium" in launch["args"]
+    assert "--model" not in launch["args"]
     assert "--mode" in launch["args"] and "accept-edits" in launch["args"]
     assert "--print-timeout" in launch["args"] and "10m" in launch["args"]
     assert "--conversation" not in launch["args"]
@@ -124,9 +128,9 @@ print("completed:" + prompt)
     invoke("continue", "copilot", "explicit-model", fresh, env=fresh_env,
            extra=("--effort", "max"))
     launch = call_log(log)[-1]
-    assert launch["cwd"] == str(worker) and launch["prompt"] == prompt.read_text()
+    assert Path(launch["cwd"]).resolve() == worker.resolve() and launch["prompt"] == prompt.read_text()
     assert "--model=explicit-model" in launch["args"]
-    assert "--effort=max" in launch["args"]
+    assert "--reasoning-effort=max" in launch["args"]
     assert not any(arg.startswith("--resume") for arg in launch["args"])
     assert launch["args"][:1] == ["-p"]
     assert "-s" in launch["args"] and "--no-ask-user" in launch["args"]
@@ -134,7 +138,7 @@ print("completed:" + prompt)
     # Explicit continuation IDs map to the provider-specific resume option.
     agy_resume = reports / "agy-resume.md"
     invoke("continue", "agy", "agy-model", agy_resume,
-           extra=("--session", "agy-session", "--family", "gemini-flash",
+           extra=("--session", "agy-session",
                   "--effort", "high"))
     assert call_log(log)[-1]["args"][call_log(log)[-1]["args"].index("--conversation") + 1] == "agy-session"
     copilot_resume = reports / "copilot-resume.md"
@@ -142,13 +146,11 @@ print("completed:" + prompt)
            extra=("--session", "copilot-session"))
     assert "--resume=copilot-session" in call_log(log)[-1]["args"]
 
-    # An explicit family also wins over an unrelated environment model.
-    for via, expected in (("agy", "gemini-9.1-flash-medium"),
-                          ("copilot", "gemini-9.2-flash")):
-        invoke("continue", via, "auto", reports / f"family-{via}.md",
-               extra=("--family", "gemini-flash"),
-               env=dict(base_env, COWORK_MODEL="stale-model"))
-        assert expected in " ".join(call_log(log)[-1]["args"])
+    # An environment model is used only when the invocation did not supply one.
+    for via in ("agy", "copilot"):
+        invoke("continue", via, "auto", reports / f"configured-{via}.md",
+               env=dict(base_env, COWORK_MODEL="configured-model"))
+        assert "configured-model" in " ".join(call_log(log)[-1]["args"])
 
     # Access flags are inherited only in full-access mode.
     for full, expected in (("0", False), ("1", True)):

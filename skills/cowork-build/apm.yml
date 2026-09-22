@@ -1,0 +1,10 @@
+name: cowork-build
+version: 1.6.0
+description: Build a frozen plan with an independently verified second model.
+author: Petteri Ponsimaa
+license: MIT
+dependencies:
+  apm: []
+  mcp: []
+includes: auto
+scripts: {}

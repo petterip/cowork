@@ -1,0 +1,10 @@
+name: cowork-agy
+version: 1.6.0
+description: Delegate explicitly requested Cowork work through Anti-Gravity CLI.
+author: Petteri Ponsimaa
+license: MIT
+dependencies:
+  apm: []
+  mcp: []
+includes: auto
+scripts: {}

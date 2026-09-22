@@ -1,5 +1,7 @@
 ---
 name: claude-handoff
+metadata:
+  version: 1.6.0
 description: Hand the current conversation off to a fresh Claude Code background agent that picks up the work immediately.
 ---
 

@@ -1,5 +1,7 @@
 ---
 name: codex-review
+metadata:
+  version: 1.6.0
 description: "Cross-model plan review: Claude drafts or loads PLAN.md, Codex critiques it in a read-only sandbox, and Claude revises in the same Codex session until APPROVED or MAX_ROUNDS. Require human approval before implementation. Use through /cowork:plan when an existing implementation plan needs adversarial review or high-stakes work needs a second-model check. Do not use for trivial changes or existing-code review."
 ---
 
@@ -13,9 +15,9 @@ This is a **deliberate, high-stakes tool** — reach for it on auth, data models
 
 ## Prerequisites (verify once, fast)
 
-- Codex CLI installed and recent: `codex --version` (need ≥ 0.130; the default `gpt-5.5` model errors on older CLIs).
+- Codex CLI installed and recent: `codex --version`.
 - Codex authenticated: a prior `codex login` (ChatGPT account is fine). If a run returns an auth/model error, surface it to the user — do not silently retry.
-- Do NOT pin `-m` unless the user asks. The user's `~/.codex/config.toml` default model is used. Pinning `gpt-5.x-codex` variants fails on ChatGPT-account auth.
+- Do NOT pin `-m` unless the user asks. The user's configured default is used.
 - **Echo the selected model before Round 1**: use the requested reviewer model, otherwise the configured default (or "CLI default" if unset). If the user objects, stop before launch.
 - Preserve the parent access mode on both the initial run and resume. The prompt,
   not a silent permission downgrade, enforces the no-edit review role.

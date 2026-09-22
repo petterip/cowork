@@ -1,0 +1,10 @@
+name: grill-with-docs-codex
+version: 1.6.0
+description: Produce a documentation-aware plan challenged by Codex.
+author: Petteri Ponsimaa
+license: MIT
+dependencies:
+  apm: []
+  mcp: []
+includes: auto
+scripts: {}

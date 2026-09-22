@@ -60,7 +60,7 @@ case "$target" in
 esac
 
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-cowork_skills=(cowork cowork-plan cowork-build cowork-review cowork-continue cowork-status cowork-setup cowork-gemini cowork-copilot)
+cowork_skills=(cowork cowork-plan cowork-build cowork-review cowork-continue cowork-status cowork-setup cowork-agy cowork-copilot)
 
 codex_root() { printf '%s\n' "${CODEX_HOME:-$HOME/.codex}"; }
 agents_root() { printf '%s\n' "${DSH_AGENTS_HOME:-$HOME/.agents}"; }
@@ -174,7 +174,7 @@ remove_legacy_claude_skill() {
 remove_superseded_skills() {
   local root=$1
   local name
-  for name in codex-claude-rally claude-handoff; do
+  for name in codex-claude-rally claude-handoff cowork-gemini; do
     remove_owned_skill_link "$root" "$name"
   done
 }

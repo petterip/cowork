@@ -1,5 +1,7 @@
 ---
 name: codex-build
+metadata:
+  version: 1.6.0
 description: "Cross-model implementation from a frozen spec: Codex builds in an isolated worktree, then Claude reviews the complete diff, runs proof, and sends bounded fixes to the same Codex session. Preserve dirty source checkouts and require human approval before applying or committing. Use through /cowork:build for well-specified refactors, migrations, reproducible bugs, and tests. Do not use for tiny edits, design work, existing-code review, or work requiring Claude-session-only tools."
 ---
 
@@ -15,18 +17,19 @@ Adapted from Peter Steinberger's `codex-first` pattern (agent-scripts), rebuilt 
 
 ## Prerequisites (verify once, fast)
 
-- Resolve `COWORK_PLUGIN_ROOT` to the plugin root two directories above this
-  skill before invoking its scripts.
-- `codex --version` ≥ 0.130 (older CLIs error on the default `gpt-5.5` model).
+- Resolve `RALLY_SCRIPTS` to `../codex-claude-rally/scripts` from this skill's
+  real directory, then run
+  `COWORK_PLUGIN_ROOT=$("$RALLY_SCRIPTS/resolve-cowork-root.sh")` before
+  invoking package scripts.
+- A recent, usable Codex CLI (`codex --version`).
 - Codex authenticated (prior `codex login`; ChatGPT account is fine). On auth/model error, surface it — don't silently retry.
-- Do NOT pin `-m` or model config (e.g. `model_reasoning_effort`) unless the user asks. Pinning `gpt-5.x-codex` variants 400s on ChatGPT-account auth; config defaults come from `~/.codex/config.toml`.
+- Do NOT pin `-m` or model config unless the user asks; otherwise use the CLI configuration defaults.
 - When the user names a Codex model or reasoning effort, pin whichever was
   named — each is resolved independently, so a model without an effort (or
   vice versa) is normal — for every fresh build invocation. Resolve a family
-  name from Codex's live catalog with
-  `$COWORK_PLUGIN_ROOT/scripts/resolve-model.sh --family named --via codex
-  --query "<requested family>"`; use a full slug directly only when the user
-  supplied it. Pass a requested effort unchanged as
+  name from setup with
+  `$COWORK_PLUGIN_ROOT/scripts/cowork resolve --peer codex --model
+  "<requested name>" --json`. Pass a requested effort unchanged as
   `-c model_reasoning_effort=<level>` and let Codex validate support. These are
   `codex exec` options, not text for the build prompt. Do not probe for a
   model-named binary, invent a version, or silently fall back to the configured
@@ -89,7 +92,7 @@ Write this contract from the frozen phase into the prompt file. Embed its
 acceptance criteria and needed decisions when the plan is untracked or absent
 from the worker; do not copy dirty source code. Confirm referenced inputs are
 readable from the isolated worker before launch. Set `CODEX_MODEL` and `CODEX_EFFORT` only from this phase's explicit request,
-resolving each independently. Resolve family names through the live catalog,
+resolving each independently. Resolve model names through the live catalog,
 including models published after this skill. Unset unspecified values to keep
 configured defaults; preserve the array for same-phase fixes:
 
@@ -121,7 +124,7 @@ EOF
 BUILD_REPORT="$PHASE_DIR/report.md"
 BUILD_EVENTS="$PHASE_DIR/events.jsonl"
 BUILD_STDERR="$PHASE_DIR/stderr.log"
-if ! timeout 600 codex exec "${BUILD_ACCESS[@]}" "${CODEX_ARGS[@]}" --json -o "$BUILD_REPORT" - <"$P" >"$BUILD_EVENTS" 2>"$BUILD_STDERR"; then
+if ! timeout 600 codex exec ${BUILD_ACCESS[@]+"${BUILD_ACCESS[@]}"} ${CODEX_ARGS[@]+"${CODEX_ARGS[@]}"} --json -o "$BUILD_REPORT" - <"$P" >"$BUILD_EVENTS" 2>"$BUILD_STDERR"; then
   printf 'Codex build failed; inspect %s and %s.\n' "$BUILD_EVENTS" "$BUILD_STDERR" >&2
   exit 1
 fi
@@ -155,7 +158,7 @@ Problems found → resume the SAME session (Codex keeps its context; cheaper and
 BUILD_REPORT=$(mktemp "$PHASE_DIR/fix-report.XXXXXX")
 BUILD_EVENTS="$BUILD_REPORT.events.jsonl"
 BUILD_STDERR="$BUILD_REPORT.stderr.log"
-if ! timeout 600 codex exec resume "$THREAD_ID" "${BUILD_ACCESS[@]}" "${CODEX_ARGS[@]}" --json \
+if ! timeout 600 codex exec resume "$THREAD_ID" ${BUILD_ACCESS[@]+"${BUILD_ACCESS[@]}"} ${CODEX_ARGS[@]+"${CODEX_ARGS[@]}"} --json \
   -o "$BUILD_REPORT" - <"$P2" >"$BUILD_EVENTS" 2>"$BUILD_STDERR"
 then
   printf 'Codex build resume failed; inspect %s and %s.\n' "$BUILD_EVENTS" "$BUILD_STDERR" >&2

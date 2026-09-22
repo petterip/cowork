@@ -19,17 +19,12 @@ usage() {
   cat >&2 <<'USAGE'
 usage: invoke-peer-review.sh <agy|copilot|claude> <model|auto> (<prompt> | --prompt-file <path>)
 
-  model      an exact slug or alias, or `auto` (also the empty string) to
-             resolve the latest Gemini Flash for agy, Copilot's own default,
-             or Claude's current Opus alias.
-  --effort   peer-supported level name, default medium (also COWORK_EFFORT).
-  --family   gemini-flash|auto; default gemini-flash for agy, auto for copilot
-             and claude. `--family gemini-flash --via copilot` asks Copilot for
-             Gemini.
+  model      a user-supplied name/id, or `auto` to use the peer's native default.
+  --effort   optional peer-supported level name (also COWORK_EFFORT).
 
 Environment:
-  COWORK_MODEL           default slug when the model argument is auto
-  COWORK_EFFORT          peer-supported level name, default medium
+  COWORK_MODEL           model name/id used when the model argument is auto
+  COWORK_EFFORT          optional peer-supported level name
   COWORK_PRINT_TIMEOUT   agy print-mode ceiling, default 10m
   COWORK_PROMPT_MAX_BYTES  refuse prompts larger than this, default 1000000
   COWORK_ARGV_MAX_BYTES    above this, an oversized prompt goes to the peer on
@@ -49,14 +44,11 @@ shift 2
 
 prompt=''
 prompt_file=''
-effort=${COWORK_EFFORT:-medium}
-family=''
-family_requested=0
+effort=${COWORK_EFFORT-}
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --prompt-file) [[ $# -ge 2 ]] || fail '--prompt-file requires a path.'; prompt_file=$2; shift 2 ;;
     --effort) [[ $# -ge 2 ]] || fail '--effort requires a value.'; effort=$2; shift 2 ;;
-    --family) [[ $# -ge 2 ]] || fail '--family requires a value.'; family=$2; family_requested=1; shift 2 ;;
     --) shift; prompt=${1-}; shift $(( $# > 0 ? 1 : 0 )) ;;
     *) [[ -z "$prompt" ]] || fail 'pass the prompt once, or use --prompt-file.'; prompt=$1; shift ;;
   esac
@@ -64,17 +56,8 @@ done
 
 [[ "$via" == agy || "$via" == copilot || "$via" == claude ]] ||
   fail 'via must be agy, copilot, or claude.'
-[[ "$effort" =~ ^[[:alnum:]][[:alnum:]_.-]*$ ]] || fail 'effort must be a CLI-safe level name.'
-if [[ -z "$family" ]]; then
-  if [[ "$via" == agy ]]; then family=gemini-flash; else family=auto; fi
-fi
-[[ "$family" == gemini-flash || "$family" == auto ]] || fail 'family must be gemini-flash or auto.'
-if [[ "$family" == auto && "$via" == agy ]]; then
-  fail 'family auto is only valid via copilot or claude.'
-fi
-if [[ "$family" == gemini-flash && "$via" == claude ]]; then
-  fail 'Gemini Flash is not a Claude model; use agy or copilot for --family gemini-flash.'
-fi
+[[ -z "$effort" || "$effort" =~ ^[[:alnum:]][[:alnum:]_.-]*$ ]] ||
+  fail 'effort must be a CLI-safe level name.'
 
 if [[ -n "$prompt_file" ]]; then
   [[ -z "$prompt" ]] || fail 'pass either a prompt argument or --prompt-file, not both.'
@@ -91,21 +74,13 @@ if (( prompt_bytes > max_bytes )); then
   fail "prompt is ${prompt_bytes} bytes, over the ${max_bytes} limit; narrow the review scope or raise COWORK_PROMPT_MAX_BYTES deliberately."
 fi
 
-# Resolution lives here, at the single choke point, so an unspecified model is
-# always the latest Flash rather than whatever the caller remembered.
 if [[ -z "$model" || "$model" == auto ]]; then
-  model_override=${COWORK_MODEL-}
-  if (( family_requested )) && [[ "$family" == gemini-flash ]]; then model_override=''; fi
-  model=$(COWORK_MODEL="$model_override" "$script_dir/resolve-model.sh" --family "$family" --via "$via" --effort "$effort")
+  model=${COWORK_MODEL-}
 fi
-[[ -n "$model" ]] || fail 'model must not be empty.'
 
-if [[ "$via" == claude ]]; then
-  printf 'cowork: peer review via claude using %s (effort %s)\n' "$model" "$effort" >&2
-else
-  printf 'cowork: peer review via %s using %s (effort %s, timeout %s)\n' \
-    "$via" "$model" "$effort" "${COWORK_PRINT_TIMEOUT:-10m}" >&2
-fi
+printf 'cowork: peer review via %s using %s' "$via" "${model:-peer default}" >&2
+[[ -z "$effort" ]] || printf ' (effort %s)' "$effort" >&2
+printf '\n' >&2
 
 if [[ "$via" == claude ]]; then
   command -v claude >/dev/null 2>&1 || fail 'the Claude Code CLI (claude) is required.'
@@ -120,7 +95,9 @@ if [[ "$via" == claude ]]; then
   trap 'rm -rf "$workspace"' EXIT
   cd "$workspace"
 
-  claude_args=(--model "$model" --effort "$effort")
+  claude_args=()
+  [[ -z "$model" ]] || claude_args+=(--model "$model")
+  [[ -z "$effort" ]] || claude_args+=(--effort "$effort")
   argv_max=${COWORK_ARGV_MAX_BYTES:-120000}
   status=0
   if (( prompt_bytes <= argv_max )); then
@@ -137,7 +114,7 @@ if [[ "$via" == claude ]]; then
 fi
 
 if [[ "$via" == agy ]]; then
-  command -v agy >/dev/null 2>&1 || fail 'the Antigravity CLI (agy) is required for Gemini.'
+  command -v agy >/dev/null 2>&1 || fail 'the Anti-Gravity CLI (agy) is required for this peer.'
   # Run from a scratch directory so the peer does not start with the repository
   # in front of it. Defence in depth, not a boundary: an absolute path still
   # reaches anywhere the user can write, so the caller still verifies the tree
@@ -147,12 +124,11 @@ if [[ "$via" == agy ]]; then
   cd "$workspace"
 
   argv_max=${COWORK_ARGV_MAX_BYTES:-120000}
+  agy_args=(-p "$prompt" --print-timeout "${COWORK_PRINT_TIMEOUT:-10m}" --sandbox)
+  [[ -z "$model" ]] || agy_args+=(--model "$model")
+  [[ -z "$effort" ]] || agy_args+=(--effort "$effort")
   if (( prompt_bytes <= argv_max )); then
-    agy -p "$prompt" \
-      --model "$model" \
-      --effort "$effort" \
-      --print-timeout "${COWORK_PRINT_TIMEOUT:-10m}" \
-      --sandbox
+    agy "${agy_args[@]}"
     exit $?
   fi
 
@@ -167,15 +143,13 @@ if [[ "$via" == agy ]]; then
   # -c: one JSON object per line, which is what an NDJSON reader is entitled to
   # expect even if this CLI currently tolerates pretty-printed input.
   pipeline_status=0
+  stream_args=(--print= --input-format stream-json --output-format stream-json \
+    --print-timeout "${COWORK_PRINT_TIMEOUT:-10m}" --sandbox)
+  [[ -z "$model" ]] || stream_args+=(--model "$model")
+  [[ -z "$effort" ]] || stream_args+=(--effort "$effort")
   jq -nc --rawfile text "$workspace/prompt.txt" \
     '{event:"user",message:{role:"user",content:[{type:"text",text:$text}]}}' |
-    agy --print= \
-      --input-format stream-json \
-      --output-format stream-json \
-      --model "$model" \
-      --effort "$effort" \
-      --print-timeout "${COWORK_PRINT_TIMEOUT:-10m}" \
-      --sandbox >"$transcript" || pipeline_status=$?
+    agy "${stream_args[@]}" >"$transcript" || pipeline_status=$?
 
   # Diagnostics before any exit: the workspace holding the transcript is removed
   # by the EXIT trap, so a bare `set -e` abort here would throw away the only
@@ -203,8 +177,17 @@ command -v copilot >/dev/null 2>&1 || fail 'the GitHub Copilot CLI (copilot) is 
 if (( prompt_bytes > ${COWORK_ARGV_MAX_BYTES:-120000} )); then
   fail "prompt is ${prompt_bytes} bytes, which exceeds what can be passed to copilot as an argument; narrow the scope or use --via agy."
 fi
-exec copilot -p "$prompt" -s --no-ask-user --model="$model" --effort="$effort" \
-  --allow-tool='shell(git status:*)' \
-  --allow-tool='shell(git diff:*)' \
-  --allow-tool='shell(git log:*)' \
+copilot_args=(-p "$prompt" -s --no-ask-user)
+[[ -z "$model" ]] || copilot_args+=(--model="$model")
+if [[ -n "$effort" ]]; then
+  effort_option=$("$script_dir/cowork" setup --json | jq -r '.peers.copilot.reasoningEffortOption // empty')
+  [[ -n "$effort_option" ]] || fail 'this Copilot CLI does not report a reasoning-effort option.'
+  copilot_args+=("$effort_option=$effort")
+fi
+copilot_args+=(
+  --allow-tool='shell(git status:*)'
+  --allow-tool='shell(git diff:*)'
+  --allow-tool='shell(git log:*)'
   --allow-tool='shell(git show:*)'
+)
+exec copilot "${copilot_args[@]}"
