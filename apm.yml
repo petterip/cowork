@@ -1,5 +1,6 @@
 name: cowork
 version: 1.6.0
+x-minimum-apm-version: "0.30.0"
 description: Plan, build, review, and continue work across Claude, Codex, Anti-Gravity, and GitHub Copilot.
 author: Petteri Ponsimaa
 license: MIT
