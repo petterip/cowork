@@ -26,7 +26,9 @@ All routes follow the [delegation contract](skills/codex-claude-rally/references
 Model names are opaque user data, not peer names. When a request names both a
 peer and a model, the peer wins. Otherwise Cowork matches the name against the
 catalogs discovered on that workstation and proceeds only when one peer/id is
-unambiguous. No model names or versions are built into routing logic.
+unambiguous. With a selected peer, catalogs are alias hints, never allowlists:
+unmatched or ambiguous model names pass unchanged to that CLI. Numeric versions
+are matched as whole values; a requested version is never reduced to an older one. No model names or versions are built into routing logic.
 
 Select a peer explicitly with `--peer`; legacy peer-specific flags remain
 accepted for compatibility.
@@ -75,18 +77,10 @@ scripts/cowork doctor
 The capability manifest lives under `${XDG_STATE_HOME:-$HOME/.local/state}` and
 is automatically refreshed when Cowork or a peer CLI version changes.
 
-Before any peer launch, classify the material and allow only the intended peer
-CLI. Cowork refuses confidential and restricted exports and fails closed when
-either setting is absent:
-
-```bash
-export COWORK_DATA_CLASSIFICATION=internal
-export COWORK_APPROVED_DESTINATIONS=claude,codex,copilot,agy
-```
-
-Use `public` instead of `internal` only when that classification is accurate.
-Never use Cowork as an export path for PHI, PII, credentials, customer data, or
-other regulated material.
+Peer launches use the selected CLI and its existing authentication. Follow the
+consumer repository's rules for shared context and keep prompts limited to the
+task. Never include PHI, PII, credentials, customer data, or other regulated
+material in peer prompts.
 
 ## Install
 

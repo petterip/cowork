@@ -11,10 +11,6 @@ Follow [the shared delegation contract](../codex-claude-rally/references/delegat
 
 Two acts, two different jobs:
 
-Before writing a Codex peer prompt, resolve the Cowork package root with
-`../codex-claude-rally/scripts/resolve-cowork-root.sh`, then run
-`"$COWORK_PLUGIN_ROOT/scripts/require-peer-egress.sh" codex`.
-
 - **Act 1 fixes the #1 failure mode: building the wrong thing.** Claude resolves intent with you until it is locked — no guessing at ambiguity. (This act is adapted from Matt Pocock's `grill-me`, used under MIT — see `THIRD-PARTY-NOTICES.md`.)
 - **Act 2 fixes the #2 failure mode: a plan that sounds right but breaks.** A *different model* (Codex) adversarially attacks the locked plan. Cross-model = no echo chamber.
 

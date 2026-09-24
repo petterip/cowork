@@ -30,7 +30,9 @@ Model and peer rules:
 
 - An explicitly requested peer always wins.
 - Treat model text as opaque. `--model` is an exact id; `--model-name` resolves
-  through the cached catalog.
+  through the cached catalog using whole version numbers. With a selected peer,
+  unmatched or ambiguous names pass unchanged to the CLI; never substitute a
+  different version or reject a model because it is absent from the catalog.
 - Without an explicit peer, use `scripts/cowork resolve --model` and proceed
   only if exactly one peer/id matches.
 - Without a model, omit model selection and use the peer's native default.

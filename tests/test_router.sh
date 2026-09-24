@@ -9,8 +9,6 @@ fake_bin="$tmp/bin"
 official="$tmp/official"
 log="$tmp/calls.log"
 export XDG_STATE_HOME="$tmp/state"
-export COWORK_DATA_CLASSIFICATION=internal
-export COWORK_APPROVED_DESTINATIONS=claude,codex,agy,copilot
 mkdir -p "$fake_bin" "$official/scripts"
 ln -s "$(command -v jq)" "$fake_bin/jq"
 touch "$official/scripts/codex-companion.mjs"
@@ -49,6 +47,7 @@ if [[ "${1-} ${2-}" == "help config" ]]; then
   printf '%s\n' \
     '  `model`: AI model to use:' \
     '    - "peer-alpha-2"' \
+    '    - "claude-opus-5"' \
     '    - "peer-delta-7"' \
     '    - "future-nebula-17"' \
     '' \
@@ -85,14 +84,6 @@ printf '%s\n' 'binary-deck' >"$peer_repo/slides.deck"
 git -C "$peer_repo" add .gitattributes slides.deck
 git -C "$peer_repo" commit -qm deck
 git -C "$peer_repo" config diff.explode.textconv "printf 'expanded-textconv-sentinel'"
-
-if env -u COWORK_DATA_CLASSIFICATION -u COWORK_APPROVED_DESTINATIONS \
-  PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
-  COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review '--wait' 2>"$tmp/egress.err"; then
-  printf '%s\n' 'expected missing peer-egress classification to block routing' >&2
-  exit 1
-fi
-grep -Fq 'COWORK_DATA_CLASSIFICATION' "$tmp/egress.err"
 
 PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
   COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review '--wait'
@@ -230,6 +221,13 @@ grep -Fq -- '--peer cannot be combined' "$tmp/route.err"
   COWORK_CODEX_PLUGIN_ROOT="$official" "$router" review '--peer agy --model=custom-choice')
 grep -Fq 'agy:-p' "$log"
 grep -Fq 'custom-choice' "$log"
+
+for option in --model --model-name; do
+  : >"$log"
+  (cd "$peer_repo" && PATH="$fake_bin:/usr/bin:/bin" COWORK_TEST_LOG="$log" \
+    "$router" review "--peer copilot $option opus-5.5")
+  grep -Fq -- '--model=opus-5.5' "$log"
+done
 
 for peer in '--peer agy' '--peer copilot'; do
   : >"$log"

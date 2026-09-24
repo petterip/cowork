@@ -32,6 +32,8 @@ Then call:
 Rules:
 
 - A peer is a CLI. A model name is opaque user data.
+- With a selected peer, pass unknown or ambiguous model names unchanged to its
+  CLI. Catalogs are alias hints, not allowlists; never substitute model versions.
 - An explicit peer wins. Without one, use `cowork resolve --model`; proceed
   only when one peer/id matches.
 - If the user supplied no model, pass `auto`; the launcher omits the model

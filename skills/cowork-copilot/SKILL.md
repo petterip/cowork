@@ -23,8 +23,9 @@ For reviews, use the shared router rather than constructing a command:
 Rules:
 
 - Copilot remains the peer regardless of the requested model.
-- Supplied model text resolves from setup's live catalog. Without a model, use
-  Copilot's native default.
+- Use the catalog only for unambiguous aliases with matching whole versions.
+  Pass unknown or ambiguous model text unchanged to Copilot; the catalog is
+  not an allowlist. Without a model, use Copilot's native default.
 - Pass effort only when the user requested it; setup records the supported
   option name.
 - Reviews are read-only. Never use `--allow-all`, `--yolo`, or broad Git tool

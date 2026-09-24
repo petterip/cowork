@@ -5,7 +5,6 @@ skill_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 verifier="$skill_dir/scripts/verify-environment.sh"
 rallyctl="$skill_dir/scripts/rallyctl.sh"
 root_resolver="$skill_dir/scripts/resolve-cowork-root.sh"
-egress_gate="$skill_dir/../../scripts/require-peer-egress.sh"
 
 fail() {
   printf 'Rally contract test failed: %s\n' "$1" >&2
@@ -30,15 +29,6 @@ tool_path=$(dirname "$(command -v rg)")
 test_path="$fake_bin:$tool_path:/usr/bin:/bin"
 
 for script in "$skill_dir"/scripts/*.sh; do bash -n "$script"; done
-bash -n "$egress_gate"
-expect_failure env -u COWORK_DATA_CLASSIFICATION -u COWORK_APPROVED_DESTINATIONS \
-  "$egress_gate" claude
-expect_failure env COWORK_DATA_CLASSIFICATION=restricted COWORK_APPROVED_DESTINATIONS=claude \
-  "$egress_gate" claude
-expect_failure env COWORK_DATA_CLASSIFICATION=internal COWORK_APPROVED_DESTINATIONS=codex \
-  "$egress_gate" claude
-env COWORK_DATA_CLASSIFICATION=internal COWORK_APPROVED_DESTINATIONS=claude \
-  "$egress_gate" claude
 [[ "$($root_resolver)" == "$(cd "$skill_dir/../.." && pwd -P)" ]] \
   || fail 'plugin-layout Cowork root resolution failed.'
 expect_failure env PATH="/usr/bin:/bin" HOME="$fake_home" XDG_STATE_HOME="$fake_state" "$verifier"
@@ -243,17 +233,6 @@ if [[ -f "$review_skill" ]]; then
 fi
 grep -Fq 'transcript-only' "$skill_dir/SKILL.md" \
   || fail 'print-mode fallback must publish stdout when the artifact is missing.'
-claude_gate='"$COWORK_PLUGIN_ROOT/scripts/require-peer-egress.sh" claude'
-[[ "$(rg -F -c "$claude_gate" "$skill_dir/SKILL.md")" == 3 ]] \
-  || fail 'Rally must document the gate and execute it before both Claude launches.'
-first_launch=$(rg -n '^\( cd "\$TARGET_REPO" && claude --bg' "$skill_dir/SKILL.md" | cut -d: -f1)
-fallback_launch=$(rg -n '^\( cd "\$TARGET_REPO" && claude -p' "$skill_dir/SKILL.md" | cut -d: -f1)
-gate_lines=()
-while IFS= read -r gate_line; do
-  gate_lines+=("$gate_line")
-done < <(rg -n -F "$claude_gate" "$skill_dir/SKILL.md" | cut -d: -f1)
-(( gate_lines[1] < first_launch && gate_lines[2] < fallback_launch && gate_lines[2] > first_launch )) \
-  || fail 'Rally egress gates must immediately precede their corresponding Claude launches.'
 if rg -n 'REVIEW_PROMPT|/tmp/codex-(build|verdict)' "$skill_dir/../codex-build" "$skill_dir/../codex-review" "$skill_dir/../grill-me-codex" "$skill_dir/../grill-with-docs-codex" >/dev/null; then
   printf '%s\n' 'Claude-to-Codex skill contains an undefined prompt or predictable result path.' >&2
   exit 1

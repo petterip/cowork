@@ -228,20 +228,14 @@ setup_command() {
   if (( json )); then cat "$manifest"; else print_setup_human; fi
 }
 
-normalize() {
-  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]'
-}
-
 matches_for_peer() {
-  local peer=$1 query=$2 model normalized_query normalized_model lower_query
+  local peer=$1 query=$2 model lower_query lower_model token model_tokens
   local -a exact=() token_matches=() tokens=()
-  normalized_query=$(normalize "$query")
   lower_query=$(printf '%s' "$query" | tr '[:upper:]' '[:lower:]')
   while IFS= read -r model; do
     [[ -n "$model" ]] || continue
-    normalized_model=$(normalize "$model")
     lower_model=$(printf '%s' "$model" | tr '[:upper:]' '[:lower:]')
-    if [[ "$lower_model" == "$lower_query" || "$normalized_model" == "$normalized_query" ]]; then
+    if [[ "$lower_model" == "$lower_query" ]]; then
       exact+=("$model")
     fi
   done < <(jq -r --arg peer "$peer" '.peers[$peer].models[]?' "$manifest")
@@ -252,13 +246,15 @@ matches_for_peer() {
 
   while IFS= read -r token; do
     [[ -n "$token" ]] && tokens+=("$token")
-  done < <(printf '%s' "$query" | tr '[:upper:]' '[:lower:]' | grep -Eo '[[:alnum:]]+' || true)
+  done < <(printf '%s' "$query" | tr '[:upper:]' '[:lower:]' | grep -Eo '[[:alpha:]]+|[[:digit:]]+([.][[:digit:]]+)*' || true)
+  (( ${#tokens[@]} > 0 )) || return 0
   while IFS= read -r model; do
     [[ -n "$model" ]] || continue
-    local all=1 token lower_model
+    local all=1
     lower_model=$(printf '%s' "$model" | tr '[:upper:]' '[:lower:]')
+    model_tokens=$(printf '%s' "$lower_model" | grep -Eo '[[:alpha:]]+|[[:digit:]]+([.][[:digit:]]+)*' | tr '\n' ' ' || true)
     for token in "${tokens[@]}"; do
-      [[ "$lower_model" == *"$token"* ]] || { all=0; break; }
+      [[ " $model_tokens " == *" $token "* ]] || { all=0; break; }
     done
     (( all )) && token_matches+=("$model")
   done < <(jq -r --arg peer "$peer" '.peers[$peer].models[]?' "$manifest")
@@ -269,7 +265,7 @@ matches_for_peer() {
 
 resolve_command() {
   local peer='' model='' json=0 refresh=0 resolved_peer='' resolved_model=''
-  local candidate catalog_count
+  local candidate
   local -a candidates=() matches=()
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -296,15 +292,12 @@ resolve_command() {
       while IFS= read -r candidate; do
         [[ -n "$candidate" ]] && candidates+=("$candidate")
       done < <(matches_for_peer "$peer" "$model" | sed '/^$/d')
-      catalog_count=$(jq -r --arg peer "$peer" '.peers[$peer].models | length' "$manifest")
       if (( ${#candidates[@]} == 1 )); then
         resolved_model=${candidates[0]}
-      elif (( ${#candidates[@]} > 1 )); then
-        fail "model '$model' is ambiguous for peer '$peer': ${candidates[*]}"
-      elif (( catalog_count == 0 )); then
-        resolved_model=$model
       else
-        fail "peer '$peer' has no model matching '$model'; refresh setup or pass an exact id."
+        # Catalogs are hints, not allowlists. Let the selected CLI validate
+        # unknown or ambiguous user text without choosing a different model.
+        resolved_model=$model
       fi
     fi
   else

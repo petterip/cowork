@@ -118,9 +118,9 @@ exit 0
 
     ambiguous_peer = run(
         ["resolve", "--peer", "copilot", "--model", "vendor series", "--json"],
-        env=env, succeeds=False,
+        env=env,
     )
-    assert "ambiguous" in ambiguous_peer.stderr
+    assert json.loads(ambiguous_peer.stdout) == {"peer": "copilot", "model": "vendor series"}
 
     ambiguous_global = run(
         ["resolve", "--model", "shared model 1", "--json"],

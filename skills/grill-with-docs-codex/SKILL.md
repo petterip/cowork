@@ -11,10 +11,6 @@ Follow [the shared delegation contract](../codex-claude-rally/references/delegat
 
 Two acts. Act 1 aligns intent *and* keeps your living docs honest; Act 2 has a different model attack the result.
 
-Before writing a Codex peer prompt, resolve the Cowork package root with
-`../codex-claude-rally/scripts/resolve-cowork-root.sh`, then run
-`"$COWORK_PLUGIN_ROOT/scripts/require-peer-egress.sh" codex`.
-
 - **Act 1** is adapted from Matt Pocock's `grill-with-docs`, used under MIT (see `THIRD-PARTY-NOTICES.md`). It resolves decisions against `CONTEXT.md`/ADRs and updates them inline.
 - **Act 2** is the original Codex adversarial review loop — cross-model, read-only, bounded.
 

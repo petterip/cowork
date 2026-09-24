@@ -12,7 +12,7 @@ cat >"$fake_bin/copilot" <<'EOF'
 #!/usr/bin/env bash
 if [[ "${1-}" == --version ]]; then printf '%s\n' 'peer-cli 1'; exit 0; fi
 if [[ "${1-} ${2-}" == "help config" ]]; then
-  printf '%s\n' '  `model`: available:' '    - "peer-alpha-2"' '' '  `other`: value'
+  printf '%s\n' '  `model`: available:' '    - "peer-alpha-2"' '    - "claude-opus-5"' '    - "claude-opus-55"' '' '  `other`: value'
   exit 0
 fi
 if [[ "${1-}" == --help ]]; then printf '%s\n' '  --reasoning-effort <level>'; exit 0; fi
@@ -34,10 +34,10 @@ export XDG_STATE_HOME="$tmp/state"
 [[ "$("$resolver" --via claude --query user-choice)" == user-choice ]]
 [[ -z "$("$resolver" --via copilot)" ]]
 
-if err=$("$resolver" --via copilot --query missing 2>&1); then
-  printf '%s\n' 'expected an unavailable model to fail' >&2
-  exit 1
-fi
-printf '%s\n' "$err" | grep -Fq 'no model matching'
+for requested in missing opus-5.5 vendor-future-99.1; do
+  [[ "$("$resolver" --via copilot --query "$requested")" == "$requested" ]]
+done
+[[ "$("$resolver" --via copilot --query opus-5)" == claude-opus-5 ]]
+[[ "$("$resolver" --via copilot --query opus-55)" == claude-opus-55 ]]
 
 printf '%s\n' 'Cowork model resolver contract: PASS'

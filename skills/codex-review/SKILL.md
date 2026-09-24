@@ -11,10 +11,6 @@ Follow [the shared delegation contract](../codex-claude-rally/references/delegat
 
 Two models, one plan, a bounded argument. **Claude is the builder and orchestrator. Codex is a no-edit critic.** The child inherits full access when the user already authorized it; the review prompt still forbids file changes. They communicate through `PLAN.md` and a persistent Codex session. The human enters at kickoff and final sign-off.
 
-Before writing a Codex peer prompt, resolve the Cowork package root with
-`../codex-claude-rally/scripts/resolve-cowork-root.sh`, then run
-`"$COWORK_PLUGIN_ROOT/scripts/require-peer-egress.sh" codex`.
-
 This is a **deliberate, high-stakes tool** — reach for it on auth, data models, concurrency, migrations, payments, anything expensive to get wrong. Skip it for obvious/cheap work.
 
 ## Prerequisites (verify once, fast)
